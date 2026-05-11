@@ -56,7 +56,7 @@ class BotEngine:
                 rsi, atr = RSIStrategy.calculate_indicators(klines)
                 signal, new_tp, new_sl = RSIStrategy.get_signal(rsi, atr, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
                 
-                log_price(SYMBOL, price, rsi)
+                # log_price(SYMBOL, price, rsi)
                 logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | ATR: {atr:.4f} | Signal: {signal}")
 
                 if signal == 'BUY': # Open LONG
