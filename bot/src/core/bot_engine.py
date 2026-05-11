@@ -4,6 +4,7 @@ from src.core.exchange import ExchangeManager
 from src.strategies.rsi_strategy import RSIStrategy
 from src.config.trading_params import SYMBOL, TRADE_PERCENTAGE, CHECK_INTERVAL, TAKE_PROFIT_PCT, STOP_LOSS_PCT
 from src.utils.db import log_trade, log_price, update_status, get_last_status
+from src.utils.telegram_notifier import TelegramNotifier
 
 class BotEngine:
     def __init__(self):
@@ -75,6 +76,7 @@ class BotEngine:
                             
                             log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "LONG")
+                            TelegramNotifier.notify_trade_open(SYMBOL, 'LONG', price, buy_quantity, self.target_tp, self.target_sl)
 
                 elif signal == 'SELL_SHORT': # Open SHORT
                     balance_usdt = self.exchange.get_balance('USDT')
@@ -93,6 +95,7 @@ class BotEngine:
                             
                             log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "SHORT")
+                            TelegramNotifier.notify_trade_open(SYMBOL, 'SHORT', price, sell_quantity, self.target_tp, self.target_sl)
 
                 elif signal == 'SELL': # Close LONG
                     positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
@@ -102,6 +105,7 @@ class BotEngine:
                         if self.exchange.execute_market_order(SYMBOL, 'SELL', qty):
                             pnl = (price - self.last_buy_price) * qty
                             log_trade(SYMBOL, 'SELL', price, qty, balance_before=qty*price, pnl=pnl, trade_type="LONG")
+                            TelegramNotifier.notify_trade_close(SYMBOL, 'LONG (Exit)', price, qty, pnl)
                             self.has_position = False
                             # Cancelar órdenes pendientes (SL/TP) en Binance
                             self.exchange.cancel_all_orders(SYMBOL)
@@ -115,6 +119,7 @@ class BotEngine:
                         if self.exchange.execute_market_order(SYMBOL, 'BUY', qty):
                             pnl = (self.last_buy_price - price) * qty
                             log_trade(SYMBOL, 'BUY', price, qty, balance_before=qty*price, pnl=pnl, trade_type="SHORT")
+                            TelegramNotifier.notify_trade_close(SYMBOL, 'SHORT (Exit)', price, qty, pnl)
                             self.has_position = False
                             # Cancelar órdenes pendientes (SL/TP) en Binance
                             self.exchange.cancel_all_orders(SYMBOL)
