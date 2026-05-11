@@ -22,7 +22,7 @@ class BotEngine:
     def _recover_state(self):
         # 1. Recuperar del exchange (Saldo real)
         balance = self.exchange.get_balance('SOL')
-        self.has_position = balance >= QUANTITY
+        self.has_position = balance > 0.01 # Umbral mínimo para detectar posición (aprox $1)
         
         # 2. Recuperar de DB (Estado lógico)
         status = get_last_status()
