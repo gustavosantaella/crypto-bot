@@ -18,6 +18,8 @@ class BotEngine:
 
     def _sync_db_status(self):
         update_status(self.has_position, self.last_buy_price, self.target_tp, self.target_sl, self.trade_type)
+    def _check_notional(self, price, quantity):
+        return (price * quantity) >= 10.0 # Mínimo 10 USDT
 
     def _recover_state(self):
         try:
@@ -42,22 +44,22 @@ class BotEngine:
             logging.error(f"Error recovering state: {e}")
 
     def start(self):
-        logging.info("--- Iniciando Motor FUTUROS ---")
-        from src.config.trading_params import LEVERAGE
+        logging.info("--- Iniciando Motor FUTUROS (Estrategia Pro) ---")
+        from src.config.trading_params import LEVERAGE, TIMEFRAME
         while True:
             try:
                 price = self.exchange.get_ticker_price(SYMBOL)
-                klines = self.exchange.get_klines(SYMBOL)
+                klines = self.exchange.get_klines(SYMBOL, interval=TIMEFRAME)
                 if not price or not klines: continue
 
-                rsi = RSIStrategy.calculate_rsi(klines)
-                signal = RSIStrategy.get_signal(rsi, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
+                rsi, atr = RSIStrategy.calculate_indicators(klines)
+                signal, new_tp, new_sl = RSIStrategy.get_signal(rsi, atr, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
+                
                 log_price(SYMBOL, price, rsi)
-                logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | Signal: {signal}")
+                logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | ATR: {atr:.4f} | Signal: {signal}")
 
                 if signal == 'BUY': # Open LONG
                     balance_usdt = self.exchange.get_balance('USDT')
-                    # Cantidad con apalancamiento
                     buy_quantity = (balance_usdt * TRADE_PERCENTAGE * LEVERAGE) / price
                     
                     if self._check_notional(price, buy_quantity):
@@ -65,8 +67,8 @@ class BotEngine:
                             self.has_position = True
                             self.trade_type = "LONG"
                             self.last_buy_price = price
-                            self.target_tp = price * (1 + TAKE_PROFIT_PCT)
-                            self.target_sl = price * (1 - STOP_LOSS_PCT)
+                            self.target_tp = new_tp
+                            self.target_sl = new_sl
                             log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "LONG")
 
@@ -79,8 +81,8 @@ class BotEngine:
                             self.has_position = True
                             self.trade_type = "SHORT"
                             self.last_buy_price = price
-                            self.target_tp = price * (1 - TAKE_PROFIT_PCT) # TP abajo para SHORT
-                            self.target_sl = price * (1 + STOP_LOSS_PCT)   # SL arriba para SHORT
+                            self.target_tp = new_tp
+                            self.target_sl = new_sl
                             log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "SHORT")
 
@@ -101,7 +103,7 @@ class BotEngine:
                     if pos:
                         qty = abs(float(pos['positionAmt']))
                         if self.exchange.execute_market_order(SYMBOL, 'BUY', qty):
-                            pnl = (self.last_buy_price - price) * qty # Invertido para SHORT
+                            pnl = (self.last_buy_price - price) * qty
                             log_trade(SYMBOL, 'BUY', price, qty, balance_before=qty*price, pnl=pnl, trade_type="SHORT")
                             self.has_position = False
                             update_status(False, None, None, None, "SHORT")
