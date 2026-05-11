@@ -32,7 +32,10 @@ export class App implements OnInit, OnDestroy {
   fetchData() {
     this.apiService.getBotStatus().subscribe(data => this.status = data);
     this.apiService.getTrades().subscribe(data => this.trades = data);
-    this.apiService.getBalance().subscribe(data => this.balances = data.balances);
+    this.apiService.getBalance().subscribe(data => {
+      console.log('Balance data received:', data);
+      this.balances = data.balances;
+    });
     this.apiService.getPriceLogs().subscribe(data => {
       this.priceLogs = data.slice(0, 10); // Last 10 prices
     });

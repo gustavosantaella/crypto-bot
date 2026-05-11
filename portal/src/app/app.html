@@ -20,7 +20,6 @@
       <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 1rem;">Last Update: {{ formatDate(status.updated_at) }}</p>
     </div>
 
-    <!-- Wallet Balances -->
     <div class="glass-card">
       <h3 style="color: var(--text-muted); margin-top: 0;">Wallet Balances</h3>
       <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
@@ -28,7 +27,9 @@
           <div style="font-size: 0.75rem; color: var(--text-muted);">{{ bal.asset }}</div>
           <div style="font-weight: 700; font-size: 1.125rem;">{{ bal.free }}</div>
         </div>
-        <div *ngIf="balances.length === 0" style="color: var(--text-muted);">Fetching balances...</div>
+        <div *ngIf="!balances || balances.length === 0" style="color: var(--text-muted);">
+          No assets found or loading...
+        </div>
       </div>
     </div>
 
