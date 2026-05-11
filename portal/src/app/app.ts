@@ -1,12 +1,13 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ApiService } from './api.service';
 import { interval, Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -20,12 +21,30 @@ export class App implements OnInit, OnDestroy {
   winRate: number = 0;
   apiOnline: boolean = false;
   showMarketHistory: boolean = false;
+  
+  // Filters
+  filters = {
+    side: '',
+    trade_type: '',
+    status: ''
+  };
+
   private refreshSub?: Subscription;
 
   constructor(
     private apiService: ApiService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  get filteredTrades() {
+    return this.trades.filter(t => {
+      const matchSide = !this.filters.side || t.side.toLowerCase().includes(this.filters.side.toLowerCase());
+      const matchType = !this.filters.trade_type || t.trade_type.toLowerCase().includes(this.filters.trade_type.toLowerCase());
+      const statusText = t.message ? 'CANCELLED' : 'EXECUTED';
+      const matchStatus = !this.filters.status || statusText.toLowerCase().includes(this.filters.status.toLowerCase());
+      return matchSide && matchType && matchStatus;
+    });
+  }
 
   toggleMarketHistory() {
     this.showMarketHistory = !this.showMarketHistory;

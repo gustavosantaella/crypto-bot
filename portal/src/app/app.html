@@ -121,9 +121,19 @@
             <th>PnL</th>
             <th>Status</th>
           </tr>
+          <tr class="filter-row">
+            <th></th>
+            <th><input [(ngModel)]="filters.trade_type" placeholder="Filtrar..."></th>
+            <th><input [(ngModel)]="filters.side" placeholder="Filtrar..."></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th><input [(ngModel)]="filters.status" placeholder="Filtrar..."></th>
+          </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let trade of trades" style="background: rgba(255,255,255,0.02); transition: all 0.2s; border-radius: 12px;">
+          <tr *ngFor="let trade of filteredTrades" style="background: rgba(255,255,255,0.02); transition: all 0.2s; border-radius: 12px;">
             <td style="padding: 1.2rem 1.5rem; border-radius: 12px 0 0 12px; font-size: 0.85rem; color: var(--text-muted);">{{ formatDate(trade.timestamp) }}</td>
             <td style="padding: 1.2rem 1.5rem;">
               <span class="badge" style="background: rgba(0,210,255,0.1); color: var(--primary);">{{ trade.trade_type }}</span>

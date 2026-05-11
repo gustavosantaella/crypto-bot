@@ -104,3 +104,24 @@ body {
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
 }
+
+.filter-row th {
+  padding: 0.5rem !important;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.filter-row input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-main);
+  padding: 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.filter-row input:focus {
+  border-color: var(--primary);
+}
