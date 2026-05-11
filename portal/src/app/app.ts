@@ -21,6 +21,7 @@ export class App implements OnInit, OnDestroy {
   winRate: number = 0;
   apiOnline: boolean = false;
   showMarketHistory: boolean = false;
+  botInventory: any[] = [];
   
   // Filters
   filters = {
