@@ -60,7 +60,7 @@
               <div style="font-size: 0.65rem; color: var(--text-muted);">{{ formatDate(log.timestamp) }}</div>
             </div>
             <div style="text-align: right;">
-              <span [class]="log.rsi > 65 ? 'rsi-tag danger' : (log.rsi < 35 ? 'rsi-tag success' : 'rsi-tag')">
+              <span [class]="log.rsi > 70 ? 'rsi-tag danger' : (log.rsi < 30 ? 'rsi-tag success' : 'rsi-tag')">
                 RSI: {{ log.rsi | number:'1.1-1' }}
               </span>
             </div>
@@ -105,10 +105,33 @@
             VIEW CANCELLED
           </button>
         </div>
-        <div style="overflow-x: auto;">
+        <div style="overflow-x: auto; min-height: 450px;">
           <table class="trade-table">
             <thead>
-              <tr><th># ID</th><th>Time</th><th>Prev. Balance</th><th>Type</th><th>Side</th><th>Price</th><th>Quantity</th><th>Total (USDT)</th><th>PnL</th><th>Status</th></tr>
+              <tr>
+                <th># ID</th>
+                <th>Time</th>
+                <th class="has-tooltip">
+                  Prev. Bal <span class="info-icon">?</span>
+                  <div class="tooltip-box"><b>Balance Previo:</b> Capital antes de la operación.</div>
+                </th>
+                <th>Type</th>
+                <th>Side</th>
+                <th class="has-tooltip">
+                  Price <span class="info-icon">?</span>
+                  <div class="tooltip-box"><b>Precio:</b> Valor de ejecución en futuros.</div>
+                </th>
+                <th>Qty</th>
+                <th class="has-tooltip">
+                  Total <span class="info-icon">?</span>
+                  <div class="tooltip-box"><b>Total:</b> Precio x Cantidad (Nocional).</div>
+                </th>
+                <th class="has-tooltip">
+                  PnL <span class="info-icon">?</span>
+                  <div class="tooltip-box"><b>PnL:</b> Ganancia o pérdida neta.</div>
+                </th>
+                <th>Status</th>
+              </tr>
               <tr class="filter-row">
                 <th></th>
                 <th></th>

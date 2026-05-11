@@ -108,18 +108,74 @@ body {
 .btn-secondary {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
-  border-radius: 0.75rem;
-  padding: 0.75rem 1.5rem;
-  color: var(--text-main);
-  font-weight: 600;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
 }
-
 .btn-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--primary);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Tooltip System */
+.info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  background: rgba(0, 210, 255, 0.2);
   color: var(--primary);
+  border: 1px solid rgba(0, 210, 255, 0.4);
+  border-radius: 50%;
+  font-size: 10px;
+  cursor: help;
+  margin-left: 4px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+.has-tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-box {
+  visibility: hidden;
+  width: 200px;
+  background: #1e222d;
+  color: #fff;
+  text-align: left;
+  border-radius: 8px;
+  padding: 0.75rem;
+  position: absolute;
+  z-index: 10000;
+  top: 100%; /* Ahora aparece hacia ABAJO */
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  opacity: 0;
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+  border: 1px solid rgba(255,255,255,0.15);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  pointer-events: none;
+  white-space: normal;
+}
+
+.tooltip-box b {
+  display: block;
+  color: var(--primary);
+  margin-bottom: 0.25rem;
+}
+
+.has-tooltip:hover .tooltip-box {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .btn-secondary:disabled {

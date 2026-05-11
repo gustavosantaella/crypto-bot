@@ -34,13 +34,13 @@ def get_trades(
     query = db.query(models.Trade)
     
     if status == 'cancelled':
-        query = query.filter(models.Trade.message != None)
+        query = query.filter(models.Trade.message != None, models.Trade.message != "")
     elif status == 'executed':
-        query = query.filter(models.Trade.message == None)
+        query = query.filter((models.Trade.message == None) | (models.Trade.message == ""))
         
-    if start_date:
+    if start_date and start_date.strip():
         query = query.filter(models.Trade.timestamp >= start_date)
-    if end_date:
+    if end_date and end_date.strip():
         query = query.filter(models.Trade.timestamp <= end_date)
         
     total = query.count()
