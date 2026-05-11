@@ -3,23 +3,37 @@ import logging
 from src.core.exchange import ExchangeManager
 from src.strategies.rsi_strategy import RSIStrategy
 from src.config.trading_params import SYMBOL, QUANTITY, CHECK_INTERVAL
-from src.utils.db import log_trade, log_price, update_status
+from src.utils.db import log_trade, log_price, update_status, get_last_status
 
 class BotEngine:
     def __init__(self):
         self.exchange = ExchangeManager()
         self.has_position = False
         self.last_buy_price = None
-        self._check_initial_balance()
+        self._recover_state()
         self._sync_db_status()
 
     def _sync_db_status(self):
         update_status(self.has_position, self.last_buy_price)
 
-    def _check_initial_balance(self):
+    def _recover_state(self):
+        # 1. Recuperar del exchange (Saldo real)
         balance = self.exchange.get_balance('SOL')
         self.has_position = balance >= QUANTITY
-        logging.info(f"Bot listo. Posición: {self.has_position}")
+        
+        # 2. Recuperar de DB (Estado lógico)
+        status = get_last_status()
+        if status:
+            self.last_buy_price = float(status.last_buy_price) if status.last_buy_price else None
+            # Si el exchange dice que tenemos posición pero la DB dice que no, 
+            # confiamos en el exchange pero perdemos el precio de compra histórico
+            if self.has_position and not self.last_buy_price:
+                logging.warning("Posición detectada sin precio de compra en DB.")
+        
+        logging.info(f"Bot listo. Posición: {self.has_position} | Last Buy: {self.last_buy_price}")
+
+    def _check_notional(self, price, quantity):
+        return (price * quantity) >= 10.0 # Mínimo 10 USDT
 
     def start(self):
         logging.info("--- Iniciando Motor del Bot ---")
@@ -40,6 +54,10 @@ class BotEngine:
                 logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | Signal: {signal}")
 
                 if signal == 'BUY':
+                    if not self._check_notional(price, QUANTITY):
+                        logging.warning(f"Orden BUY cancelada: Valor insuficiente ({price * QUANTITY:.2f} < 10 USDT)")
+                        continue
+
                     balance_before = self.exchange.get_balance('USDT') # Or whatever base currency
                     if self.exchange.execute_market_order(SYMBOL, 'BUY', QUANTITY):
                         self.has_position = True

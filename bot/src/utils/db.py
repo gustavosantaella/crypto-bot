@@ -71,3 +71,11 @@ def update_status(has_position, last_buy_price):
         db.commit()
     finally:
         db.close()
+
+def get_last_status():
+    db = SessionLocal()
+    try:
+        status = db.query(BotStatus).order_by(BotStatus.updated_at.desc()).first()
+        return status
+    finally:
+        db.close()

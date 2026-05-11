@@ -7,6 +7,28 @@
     </div>
   </header>
 
+  <!-- Performance Summary -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.875rem;">Total PnL</h4>
+      <p [style.color]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" style="font-size: 1.75rem; font-weight: 800; margin: 0.5rem 0;">
+        {{ totalPnL >= 0 ? '+' : '' }}{{ totalPnL.toFixed(2) }} <span style="font-size: 1rem;">USDT</span>
+      </p>
+    </div>
+    <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.875rem;">Win Rate</h4>
+      <p style="font-size: 1.75rem; font-weight: 800; margin: 0.5rem 0; color: var(--primary);">
+        {{ winRate.toFixed(1) }}%
+      </p>
+    </div>
+    <div class="glass-card" style="padding: 1.5rem; text-align: center;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.875rem;">Total Operations</h4>
+      <p style="font-size: 1.75rem; font-weight: 800; margin: 0.5rem 0;">
+        {{ trades.length }}
+      </p>
+    </div>
+  </div>
+
   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
     <!-- Status Card -->
     <div class="glass-card">

@@ -15,6 +15,8 @@ export class App implements OnInit, OnDestroy {
   trades: any[] = [];
   priceLogs: any[] = [];
   balances: any[] = [];
+  totalPnL: number = 0;
+  winRate: number = 0;
   private refreshSub?: Subscription;
 
   constructor(private apiService: ApiService) {}
@@ -31,7 +33,10 @@ export class App implements OnInit, OnDestroy {
 
   fetchData() {
     this.apiService.getBotStatus().subscribe(data => this.status = data);
-    this.apiService.getTrades().subscribe(data => this.trades = data);
+    this.apiService.getTrades().subscribe(data => {
+      this.trades = data;
+      this.calculatePerformance();
+    });
     this.apiService.getBalance().subscribe(data => {
       console.log('Balance data received:', data);
       this.balances = data.balances;
@@ -41,11 +46,25 @@ export class App implements OnInit, OnDestroy {
     });
   }
 
+  calculatePerformance() {
+    const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null);
+    this.totalPnL = sellTrades.reduce((acc, curr) => acc + parseFloat(curr.pnl), 0);
+    
+    if (sellTrades.length > 0) {
+      const wins = sellTrades.filter(t => parseFloat(t.pnl) > 0).length;
+      this.winRate = (wins / sellTrades.length) * 100;
+    } else {
+      this.winRate = 0;
+    }
+  }
+
   formatPrice(price: any) {
     return parseFloat(price).toFixed(4);
   }
 
   formatDate(dateStr: string) {
-    return new Date(dateStr).toLocaleString();
+    if (!dateStr || dateStr.includes('1970') || dateStr.includes('2026-01-01')) return '---';
+    const date = new Date(dateStr);
+    return isNaN(date.getTime()) ? '---' : date.toLocaleString();
   }
 }

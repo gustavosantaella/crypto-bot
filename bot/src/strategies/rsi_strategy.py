@@ -4,11 +4,18 @@ from src.config.trading_params import RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT, 
 class RSIStrategy:
     @staticmethod
     def calculate_rsi(data):
+        if len(data) < RSI_PERIOD + 1:
+            return 50.0 # Neutral RSI if not enough data
+            
         df = pd.DataFrame(data, columns=['ts', 'o', 'h', 'l', 'c', 'v', 'ct', 'qa', 'nt', 'tb', 'tq', 'i'])
         df['c'] = df['c'].astype(float)
         delta = df['c'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=RSI_PERIOD).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=RSI_PERIOD).mean()
+        
+        # Evitar división por cero
+        loss = loss.replace(0, 0.00001)
+        
         rs = gain / loss
         rsi = 100 - (100 / (1 + rs))
         return rsi.iloc[-1]

@@ -38,13 +38,34 @@ class ExchangeManager:
             logging.error(f"Error klines: {e}")
             return []
 
+    def get_symbol_info(self, symbol):
+        try:
+            return self.client.get_symbol_info(symbol)
+        except Exception as e:
+            logging.error(f"Error getting symbol info: {e}")
+            return None
+
+    def round_quantity(self, symbol, quantity):
+        info = self.get_symbol_info(symbol)
+        if not info:
+            return quantity
+        for f in info['filters']:
+            if f['filterType'] == 'LOT_SIZE':
+                step_size = float(f['stepSize'])
+                precision = str(step_size).find('1') - str(step_size).find('.')
+                if precision < 0: precision = 0
+                return round(quantity, precision)
+        return quantity
+
     def execute_market_order(self, symbol, side, quantity):
         try:
+            rounded_qty = self.round_quantity(symbol, quantity)
+            logging.info(f"Ejecutando {side} de {rounded_qty} {symbol}")
             return self.client.create_order(
                 symbol=symbol,
                 side=side,
                 type='MARKET',
-                quantity=quantity
+                quantity=rounded_qty
             )
         except Exception as e:
             logging.error(f"Error {side} order: {e}")
