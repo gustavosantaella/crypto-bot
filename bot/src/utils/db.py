@@ -28,6 +28,9 @@ class Trade(Base):
     quantity = Column(Numeric(20, 8))
     balance_before = Column(Numeric(20, 8))
     pnl = Column(Numeric(20, 8))
+    target_tp = Column(Numeric(20, 8))
+    target_sl = Column(Numeric(20, 8))
+    trade_type = Column(String(10), default="LONG")
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 class PriceLog(Base):
@@ -43,12 +46,25 @@ class BotStatus(Base):
     id = Column(Integer, primary_key=True, index=True)
     has_position = Column(Boolean)
     last_buy_price = Column(Numeric(20, 8))
+    target_take_profit = Column(Numeric(20, 8))
+    target_stop_loss = Column(Numeric(20, 8))
+    trade_type = Column(String(10), default="LONG")
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-def log_trade(symbol, side, price, quantity, balance_before=None, pnl=None):
+def log_trade(symbol, side, price, quantity, balance_before=None, pnl=None, target_tp=None, target_sl=None, trade_type="LONG"):
     db = SessionLocal()
     try:
-        trade = Trade(symbol=symbol, side=side, price=price, quantity=quantity, balance_before=balance_before, pnl=pnl)
+        trade = Trade(
+            symbol=symbol, 
+            side=side, 
+            price=price, 
+            quantity=quantity, 
+            balance_before=balance_before, 
+            pnl=pnl,
+            target_tp=target_tp,
+            target_sl=target_sl,
+            trade_type=trade_type
+        )
         db.add(trade)
         db.commit()
     finally:
@@ -63,10 +79,16 @@ def log_price(symbol, price, rsi):
     finally:
         db.close()
 
-def update_status(has_position, last_buy_price):
+def update_status(has_position, last_buy_price, target_tp=None, target_sl=None, trade_type="LONG"):
     db = SessionLocal()
     try:
-        status = BotStatus(has_position=has_position, last_buy_price=last_buy_price)
+        status = BotStatus(
+            has_position=has_position, 
+            last_buy_price=last_buy_price,
+            target_take_profit=target_tp,
+            target_stop_loss=target_sl,
+            trade_type=trade_type
+        )
         db.add(status)
         db.commit()
     finally:

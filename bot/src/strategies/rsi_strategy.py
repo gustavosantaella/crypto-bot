@@ -21,16 +21,23 @@ class RSIStrategy:
         return rsi.iloc[-1]
 
     @staticmethod
-    def get_signal(rsi, current_price, last_buy_price, has_position):
+    def get_signal(rsi, current_price, has_position, target_tp=None, target_sl=None, trade_type="LONG"):
         if not has_position:
+            # Lógica para entrar en LONG
             if rsi < RSI_OVERSOLD:
                 return 'BUY'
+            # Lógica para entrar en SHORT (opcional, solo si usas Futuros)
+            # if rsi > RSI_OVERBOUGHT: return 'SELL_SHORT'
         else:
-            if rsi > RSI_OVERBOUGHT:
-                return 'SELL'
-            
-            if last_buy_price:
-                change = (current_price - last_buy_price) / last_buy_price
-                if change > TAKE_PROFIT_PCT or change < -STOP_LOSS_PCT:
+            if trade_type == "LONG":
+                # Salida por RSI Sobrecompra
+                if rsi > RSI_OVERBOUGHT:
                     return 'SELL'
+                
+                # Salida por Take Profit o Stop Loss
+                if target_tp and current_price >= target_tp:
+                    return 'SELL'
+                if target_sl and current_price <= target_sl:
+                    return 'SELL'
+                    
         return 'HOLD'

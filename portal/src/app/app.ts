@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ApiService } from './api.service';
 import { interval, Subscription } from 'rxjs';
@@ -17,9 +17,13 @@ export class App implements OnInit, OnDestroy {
   balances: any[] = [];
   totalPnL: number = 0;
   winRate: number = 0;
+  apiOnline: boolean = false;
   private refreshSub?: Subscription;
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     this.fetchData();
@@ -32,29 +36,72 @@ export class App implements OnInit, OnDestroy {
   }
 
   fetchData() {
-    this.apiService.getBotStatus().subscribe(data => this.status = data);
-    this.apiService.getTrades().subscribe(data => {
-      this.trades = data;
-      this.calculatePerformance();
+    this.apiService.getBotStatus().subscribe({
+      next: (data) => {
+        console.log('Status data:', data);
+        this.status = data || { has_position: false, last_buy_price: 0 };
+        this.apiOnline = true;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('Error fetching status:', err);
+        this.apiOnline = false;
+        this.cdr.detectChanges();
+      }
     });
-    this.apiService.getBalance().subscribe(data => {
-      console.log('Balance data received:', data);
-      this.balances = data.balances;
+
+    this.apiService.getTrades().subscribe({
+      next: (data) => {
+        console.log('Trades data:', data);
+        this.trades = Array.isArray(data) ? data : [];
+        this.calculatePerformance();
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching trades:', err)
     });
-    this.apiService.getPriceLogs().subscribe(data => {
-      this.priceLogs = data.slice(0, 10); // Last 10 prices
+
+    this.apiService.getBalance().subscribe({
+      next: (data) => {
+        console.log('Balance data raw:', data);
+        const bals = data && data.balances ? data.balances : [];
+        this.balances = bals.map((b: any) => ({
+          asset: b.asset,
+          free: parseFloat(b.free || '0'),
+          locked: parseFloat(b.locked || '0')
+        }));
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching balance:', err)
+    });
+
+    this.apiService.getPriceLogs().subscribe({
+      next: (data) => {
+        console.log('Price logs raw:', data);
+        const logs = Array.isArray(data) ? data : [];
+        this.priceLogs = logs.slice(0, 10).map((p: any) => ({
+          symbol: p.symbol,
+          price: parseFloat(p.price || '0'),
+          rsi: parseFloat(p.rsi || '0')
+        }));
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error('Error fetching prices:', err)
     });
   }
 
   calculatePerformance() {
-    const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null);
-    this.totalPnL = sellTrades.reduce((acc, curr) => acc + parseFloat(curr.pnl), 0);
-    
-    if (sellTrades.length > 0) {
-      const wins = sellTrades.filter(t => parseFloat(t.pnl) > 0).length;
-      this.winRate = (wins / sellTrades.length) * 100;
-    } else {
-      this.winRate = 0;
+    try {
+      const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null && t.pnl !== undefined);
+      this.totalPnL = sellTrades.reduce((acc, curr) => acc + (parseFloat(curr.pnl) || 0), 0);
+      
+      if (sellTrades.length > 0) {
+        const wins = sellTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
+        this.winRate = (wins / sellTrades.length) * 100;
+      } else {
+        this.winRate = 0;
+      }
+    } catch (e) {
+      console.error('Error calculating performance:', e);
     }
   }
 

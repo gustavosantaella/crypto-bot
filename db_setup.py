@@ -10,13 +10,19 @@ TABLES['trades'] = (
     "  `id` int(11) NOT NULL AUTO_INCREMENT,"
     "  `symbol` varchar(20) NOT NULL,"
     "  `side` varchar(10) NOT NULL,"
-    "  `price` decimal(20,8) NOT NULL,"
-    "  `quantity` decimal(20,8) NOT NULL,"
-    "  `balance_before` decimal(20,8) DEFAULT NULL,"
-    "  `pnl` decimal(20,8) DEFAULT NULL,"
-    "  `timestamp` datetime DEFAULT CURRENT_TIMESTAMP,"
-    "  PRIMARY KEY (`id`)"
-    ") ENGINE=InnoDB")
+    "CREATE TABLE IF NOT EXISTS trades ("
+    "  id INT AUTO_INCREMENT PRIMARY KEY,"
+    "  symbol VARCHAR(20),"
+    "  side VARCHAR(10),"
+    "  price DECIMAL(20, 8),"
+    "  quantity DECIMAL(20, 8),"
+    "  balance_before DECIMAL(20, 8),"
+    "  pnl DECIMAL(20, 8),"
+    "  target_tp DECIMAL(20, 8),"
+    "  target_sl DECIMAL(20, 8),"
+    "  trade_type VARCHAR(10) DEFAULT 'LONG',"
+    "  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP"
+    ")")
 
 TABLES['price_logs'] = (
     "CREATE TABLE `price_logs` ("
@@ -29,13 +35,15 @@ TABLES['price_logs'] = (
     ") ENGINE=InnoDB")
 
 TABLES['bot_status'] = (
-    "CREATE TABLE `bot_status` ("
-    "  `id` int(11) NOT NULL AUTO_INCREMENT,"
-    "  `has_position` tinyint(1) NOT NULL,"
-    "  `last_buy_price` decimal(20,8) DEFAULT NULL,"
-    "  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,"
-    "  PRIMARY KEY (`id`)"
-    ") ENGINE=InnoDB")
+    "CREATE TABLE IF NOT EXISTS bot_status ("
+    "  id INT AUTO_INCREMENT PRIMARY KEY,"
+    "  has_position BOOLEAN,"
+    "  last_buy_price DECIMAL(20, 8),"
+    "  target_take_profit DECIMAL(20, 8),"
+    "  target_stop_loss DECIMAL(20, 8),"
+    "  trade_type VARCHAR(10) DEFAULT 'LONG',"
+    "  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+    ")")
 
 def create_database(cursor):
     try:

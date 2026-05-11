@@ -12,6 +12,9 @@ class Trade(Base):
     quantity = Column(Numeric(20, 8))
     balance_before = Column(Numeric(20, 8))
     pnl = Column(Numeric(20, 8))
+    target_tp = Column(Numeric(20, 8))
+    target_sl = Column(Numeric(20, 8))
+    trade_type = Column(String(10), default="LONG")
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 class PriceLog(Base):
@@ -29,4 +32,7 @@ class BotStatus(Base):
     id = Column(Integer, primary_key=True, index=True)
     has_position = Column(Boolean)
     last_buy_price = Column(Numeric(20, 8))
+    target_take_profit = Column(Numeric(20, 8))
+    target_stop_loss = Column(Numeric(20, 8))
+    trade_type = Column(String(10), default="LONG")
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
