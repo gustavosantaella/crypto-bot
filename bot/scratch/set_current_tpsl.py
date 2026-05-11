@@ -22,11 +22,10 @@ def main():
     qty = abs(float(pos['positionAmt']))
     side = 'SELL' if float(pos['positionAmt']) < 0 else 'BUY'
     
-    # Precios objetivo basados en lo que vimos en el dashboard
-    # Trade #71: Entry 97.61, SHORT
-    # Calculados anteriormente: TP 94.7857, SL 99.4929
-    tp = 94.7857
-    sl = 99.4929
+    # Nuevos precios objetivo (TP más cercano)
+    # Entry 97.61 - (0.9829 * 2.0) = 95.64
+    tp = 95.64
+    sl = 99.49
     
     print(f"Sincronizando TP/SL para {SYMBOL}: Side={side}, Qty={qty}, TP={tp}, SL={sl}")
     exchange.cancel_all_orders(SYMBOL)

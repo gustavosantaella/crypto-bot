@@ -30,9 +30,9 @@ class RSIStrategy:
     @staticmethod
     def get_signal(rsi, atr, current_price, has_position, target_tp=None, target_sl=None, trade_type="LONG"):
         # Niveles dinámicos por ATR
-        # Multiplicador 2.0 para SL y 3.0 para TP (Risk/Reward 1.5)
+        # Multiplicador 2.0 para SL y 2.0 para TP (Risk/Reward 1.0)
         sl_dist = atr * ATR_MULTIPLIER
-        tp_dist = atr * (ATR_MULTIPLIER * 1.5)
+        tp_dist = atr * ATR_MULTIPLIER
 
         if not has_position:
             if rsi < RSI_OVERSOLD:

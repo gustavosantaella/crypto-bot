@@ -69,7 +69,8 @@ class BotEngine:
                             self.last_buy_price = price
                             self.target_tp = new_tp
                             self.target_sl = new_sl
-                            # Configurar SL y TP en Binance
+                            
+                            # Configurar SL y TP en Binance (Órdenes reales)
                             self.exchange.set_sl_tp(SYMBOL, 'BUY', self.target_sl, self.target_tp, buy_quantity)
                             
                             log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
@@ -86,7 +87,8 @@ class BotEngine:
                             self.last_buy_price = price
                             self.target_tp = new_tp
                             self.target_sl = new_sl
-                            # Configurar SL y TP en Binance
+                            
+                            # Configurar SL y TP en Binance (Órdenes reales)
                             self.exchange.set_sl_tp(SYMBOL, 'SELL', self.target_sl, self.target_tp, sell_quantity)
                             
                             log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
