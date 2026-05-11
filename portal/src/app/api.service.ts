@@ -10,12 +10,13 @@ export class ApiService {
 
   constructor(private http: HttpClient) { }
 
-  getTrades(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/trades`);
+  getTrades(skip: number = 0, limit: number = 10, status: string = ''): Observable<any> {
+    const statusParam = status ? `&status=${status}` : '';
+    return this.http.get<any>(`${this.apiUrl}/trades?skip=${skip}&limit=${limit}${statusParam}`);
   }
 
-  getPriceLogs(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/price-logs`);
+  getPriceLogs(skip: number = 0, limit: number = 15): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/price-logs?skip=${skip}&limit=${limit}`);
   }
 
   getBotStatus(): Observable<any> {

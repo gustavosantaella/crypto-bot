@@ -23,6 +23,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
   apiOnline: boolean = false;
   botInventory: any[] = [];
   
+  tradesPage: number = 1;
+  tradesPageSize: number = 10;
+  totalTrades: number = 0;
+
   filters = { side: '', trade_type: '', status: '' };
   private refreshSub?: Subscription;
 
@@ -65,15 +69,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       error: () => { this.apiOnline = false; this.cdr.detectChanges(); }
     });
 
-    this.apiService.getTrades().subscribe({
-      next: (data) => {
-        const rawTrades = Array.isArray(data) ? data : [];
-        this.trades = rawTrades.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        this.calculatePerformance();
-        this.calculateBotInventory();
-        this.cdr.detectChanges();
-      }
-    });
+    this.loadTrades(1);
 
     this.apiService.getBalance().subscribe({
       next: (data) => {
@@ -87,18 +83,40 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.apiService.getPriceLogs().subscribe({
+    this.apiService.getPriceLogs(0, 10).subscribe({
       next: (data) => {
-        const logs = Array.isArray(data) ? data : [];
+        const logs = data && data.logs ? data.logs : [];
         this.priceLogs = logs.map((p: any) => ({
           symbol: p.symbol,
           price: parseFloat(p.price || '0'),
           rsi: parseFloat(p.rsi || '0'),
           timestamp: p.timestamp
-        })).slice(0, 10);
+        }));
         this.cdr.detectChanges();
       }
     });
+  }
+
+  loadTrades(page: number) {
+    this.tradesPage = page;
+    const skip = (page - 1) * this.tradesPageSize;
+    this.apiService.getTrades(skip, this.tradesPageSize, 'executed').subscribe({
+      next: (data) => {
+        this.totalTrades = data.total || 0;
+        this.trades = data.trades || [];
+        this.calculatePerformance();
+        this.calculateBotInventory();
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  goToCancelled() {
+    this.router.navigate(['/trades/cancelled']);
+  }
+
+  get totalPagesTrades() {
+    return Math.ceil(this.totalTrades / this.tradesPageSize);
   }
 
   calculatePerformance() {

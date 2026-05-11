@@ -88,12 +88,19 @@
       </div>
 
       <div class="glass-card" style="padding: 0;">
-        <div class="card-header">Recent Trade Execution History</div>
+        <div class="card-header">
+          <span>Recent Trade Execution History</span>
+          <button (click)="goToCancelled()" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.3); color: var(--danger);">
+            VIEW CANCELLED
+          </button>
+        </div>
         <div style="overflow-x: auto;">
           <table class="trade-table">
             <thead>
-              <tr><th>Time</th><th>Type</th><th>Side</th><th>Price</th><th>Quantity</th><th>PnL</th><th>Status</th></tr>
+              <tr><th># ID</th><th>Time</th><th>Prev. Balance</th><th>Type</th><th>Side</th><th>Price</th><th>Quantity</th><th>PnL</th><th>Status</th></tr>
               <tr class="filter-row">
+                <th></th>
+                <th></th>
                 <th></th>
                 <th><input [(ngModel)]="filters.trade_type" placeholder="Type..."></th>
                 <th><input [(ngModel)]="filters.side" placeholder="Side..."></th>
@@ -103,9 +110,18 @@
             </thead>
             <tbody>
               <tr *ngFor="let trade of filteredTrades">
+                <td style="font-size: 0.7rem; color: var(--text-muted); font-weight: 800;">#{{ trade.id }}</td>
                 <td class="muted">{{ formatDate(trade.timestamp) }}</td>
-                <td><span class="badge primary">{{ trade.trade_type }}</span></td>
-                <td><span class="badge" [class.success]="trade.side === 'BUY'" [class.danger]="trade.side === 'SELL'">{{ trade.side }}</span></td>
+                <td class="bold" style="color: #60a5fa;">{{ trade.balance_before ? (trade.balance_before | number:'1.2-2') + ' USDT' : '-' }}</td>
+                <td><span class="badge" style="background: rgba(0, 210, 255, 0.1); color: var(--primary); border: 1px solid rgba(0, 210, 255, 0.2);">{{ trade.trade_type }}</span></td>
+                <td>
+                  <span class="badge" 
+                    [style.background]="trade.side === 'BUY' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'"
+                    [style.color]="trade.side === 'BUY' ? 'var(--success)' : 'var(--danger)'"
+                    [style.border]="trade.side === 'BUY' ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)'">
+                    {{ trade.side }}
+                  </span>
+                </td>
                 <td class="bold">${{ formatPrice(trade.price) }}</td>
                 <td>{{ trade.quantity }}</td>
                 <td class="bold" [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
@@ -115,6 +131,26 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Trades Pagination -->
+        <div class="card-footer" style="padding: 1rem; display: flex; justify-content: center; gap: 1rem; border-top: 1px solid var(--border);">
+          <button 
+            [disabled]="tradesPage === 1" 
+            (click)="loadTrades(tradesPage - 1)" 
+            class="btn-secondary" 
+            style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            PREV
+          </button>
+          <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.8rem;">
+            Page <b>{{ tradesPage }}</b> of {{ totalPagesTrades }}
+          </div>
+          <button 
+            [disabled]="tradesPage >= totalPagesTrades" 
+            (click)="loadTrades(tradesPage + 1)" 
+            class="btn-secondary" 
+            style="padding: 0.4rem 0.8rem; font-size: 0.75rem;">
+            NEXT
+          </button>
         </div>
       </div>
     </div>

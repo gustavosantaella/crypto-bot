@@ -1,0 +1,53 @@
+<div class="container" style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+      <h2 style="color: var(--danger); font-size: 2rem; margin: 0; font-weight: 800;">Cancelled Operations</h2>
+      <p style="color: var(--text-muted); margin: 0;">Audit log of trades that failed to execute</p>
+    </div>
+    <button (click)="goBack()" class="btn-primary" style="padding: 0.6rem 1.2rem;">
+      ← BACK TO TERMINAL
+    </button>
+  </header>
+
+  <div class="glass-card" style="padding: 0; border-color: rgba(239, 68, 68, 0.2);">
+    <table class="trade-table">
+      <thead>
+        <tr>
+          <th># ID</th>
+          <th>Time</th>
+          <th>Symbol</th>
+          <th>Price</th>
+          <th>Quantity</th>
+          <th>Reason / Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let trade of trades">
+          <td style="font-size: 0.7rem; color: var(--text-muted);">#{{ trade.id }}</td>
+          <td class="muted">{{ formatDate(trade.timestamp) }}</td>
+          <td class="bold">{{ trade.symbol }}</td>
+          <td class="bold">${{ formatPrice(trade.price) }}</td>
+          <td>{{ trade.quantity }}</td>
+          <td>
+            <span class="text-danger" style="font-size: 0.8rem; background: rgba(239, 68, 68, 0.05); padding: 0.3rem 0.6rem; border-radius: 4px; display: block;">
+              {{ trade.message }}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <div *ngIf="trades.length === 0" style="padding: 4rem; text-align: center; color: var(--text-muted);">
+      No cancelled operations found.
+    </div>
+
+    <!-- Pagination -->
+    <div class="card-footer" style="padding: 1.5rem; display: flex; justify-content: center; gap: 1rem; border-top: 1px solid var(--border);">
+      <button [disabled]="currentPage === 1" (click)="loadPage(currentPage - 1)" class="btn-secondary">PREV</button>
+      <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+        Page <b>{{ currentPage }}</b> of {{ totalPages }}
+      </div>
+      <button [disabled]="currentPage >= totalPages" (click)="loadPage(currentPage + 1)" class="btn-secondary">NEXT</button>
+    </div>
+  </div>
+</div>

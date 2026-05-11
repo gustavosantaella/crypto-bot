@@ -1,9 +1,8 @@
 <div class="container" style="padding: 2rem; max-width: 1000px; margin: 0 auto;">
-  <p style="color: yellow; font-size: 0.8rem;">[DEBUG: History Page Loaded - Logs Count: {{ allPriceLogs.length }}]</p>
   <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
       <h2 class="gradient-text" style="font-size: 2rem; margin: 0;">Market RSI History</h2>
-      <p style="color: var(--text-muted); margin: 0;">Full historical feed of price and indicators</p>
+      <p style="color: var(--text-muted); margin: 0;">Showing {{ allPriceLogs.length }} of {{ totalLogs }} entries (Page {{ currentPage }} of {{ totalPages }})</p>
     </div>
     <button (click)="goBack()" class="btn-primary" style="padding: 0.6rem 1.2rem;">
       ← BACK TO TERMINAL
@@ -33,8 +32,32 @@
         </tr>
       </tbody>
     </table>
+    
     <div *ngIf="allPriceLogs.length === 0" style="padding: 4rem; text-align: center; color: var(--text-muted);">
       No history logs found in database.
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="card-footer" style="padding: 1.5rem; display: flex; justify-content: center; gap: 1rem; border-top: 1px solid var(--border);">
+      <button 
+        [disabled]="currentPage === 1" 
+        (click)="loadPage(currentPage - 1)" 
+        class="btn-secondary" 
+        style="padding: 0.5rem 1rem; opacity: currentPage === 1 ? 0.3 : 1;">
+        PREVIOUS
+      </button>
+      
+      <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+        Page <span style="color: var(--primary); font-weight: 800;">{{ currentPage }}</span> of {{ totalPages }}
+      </div>
+
+      <button 
+        [disabled]="currentPage >= totalPages" 
+        (click)="loadPage(currentPage + 1)" 
+        class="btn-secondary" 
+        style="padding: 0.5rem 1rem; opacity: currentPage >= totalPages ? 0.3 : 1;">
+        NEXT
+      </button>
     </div>
   </div>
 </div>

@@ -22,15 +22,24 @@ app.add_middleware(
 def read_root():
     return {"message": "Crypto Bot API is running"}
 
-@app.get("/trades", response_model=List[schemas.Trade])
-def get_trades(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    trades = db.query(models.Trade).order_by(models.Trade.timestamp.desc()).offset(skip).limit(limit).all()
-    return trades
+@app.get("/trades")
+def get_trades(skip: int = 0, limit: int = 10, status: str = None, db: Session = Depends(get_db)):
+    query = db.query(models.Trade)
+    
+    if status == 'cancelled':
+        query = query.filter(models.Trade.message != None)
+    elif status == 'executed':
+        query = query.filter(models.Trade.message == None)
+        
+    total = query.count()
+    trades = query.order_by(models.Trade.timestamp.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "trades": trades}
 
-@app.get("/price-logs", response_model=List[schemas.PriceLog])
-def get_price_logs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@app.get("/price-logs")
+def get_price_logs(skip: int = 0, limit: int = 15, db: Session = Depends(get_db)):
+    total = db.query(models.PriceLog).count()
     logs = db.query(models.PriceLog).order_by(models.PriceLog.timestamp.desc()).offset(skip).limit(limit).all()
-    return logs
+    return {"total": total, "logs": logs}
 
 @app.get("/bot-status", response_model=schemas.BotStatus)
 def get_bot_status(db: Session = Depends(get_db)):
