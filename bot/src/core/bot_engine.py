@@ -45,7 +45,7 @@ class BotEngine:
         while True:
             try:
                 price = self.exchange.get_ticker_price(SYMBOL)
-                klines = self.exchange.get_klines(SYMBOL)
+                klines = self.exchange.get_klines(SYMBOL, interval='1m')
                 
                 if not price or not klines:
                     continue

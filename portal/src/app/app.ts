@@ -14,16 +14,23 @@ export class App implements OnInit, OnDestroy {
   status: any = { has_position: false, last_buy_price: 0 };
   trades: any[] = [];
   priceLogs: any[] = [];
+  allPriceLogs: any[] = [];
   balances: any[] = [];
   totalPnL: number = 0;
   winRate: number = 0;
   apiOnline: boolean = false;
+  showMarketHistory: boolean = false;
   private refreshSub?: Subscription;
 
   constructor(
     private apiService: ApiService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  toggleMarketHistory() {
+    this.showMarketHistory = !this.showMarketHistory;
+    this.cdr.detectChanges();
+  }
 
   ngOnInit() {
     this.fetchData();
@@ -78,11 +85,14 @@ export class App implements OnInit, OnDestroy {
       next: (data) => {
         console.log('Price logs raw:', data);
         const logs = Array.isArray(data) ? data : [];
-        this.priceLogs = logs.slice(0, 10).map((p: any) => ({
+        const formattedLogs = logs.map((p: any) => ({
           symbol: p.symbol,
           price: parseFloat(p.price || '0'),
-          rsi: parseFloat(p.rsi || '0')
+          rsi: parseFloat(p.rsi || '0'),
+          timestamp: p.timestamp
         }));
+        this.priceLogs = formattedLogs.slice(0, 10);
+        this.allPriceLogs = formattedLogs; // Store all for history
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error fetching prices:', err)
