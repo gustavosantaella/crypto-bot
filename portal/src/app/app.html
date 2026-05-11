@@ -1,185 +1,201 @@
-<div class="container" style="padding: 2rem; max-width: 1400px; margin: 0 auto;">
+<div class="container" style="padding: 2rem; max-width: 1600px; margin: 0 auto;">
   <!-- Header -->
-  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem;">
-    <h1 class="gradient-text" style="font-size: 2.5rem; margin: 0;">CryptoBot Portal</h1>
-    <div class="glass-card" style="padding: 0.5rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px;">
+  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+      <h1 class="gradient-text" style="font-size: 2.2rem; margin: 0; font-weight: 800; letter-spacing: -1px;">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
+      <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;">High-Frequency RSI Strategy • SOL/USDT</p>
+    </div>
+    <div class="glass-card" style="padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);">
       <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
            [class.pulse]="apiOnline"
-           style="width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px currentcolor;"></div>
-      <span style="font-weight: 600; font-size: 0.9rem;">{{ apiOnline ? 'API Online' : 'API Offline' }}</span>
+           style="width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 15px currentcolor;"></div>
+      <span style="font-weight: 600; font-size: 0.85rem; letter-spacing: 1px;">{{ apiOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE' }}</span>
     </div>
   </header>
 
-  <!-- Performance Summary -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
-    <div class="glass-card">
-      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.8rem; text-transform: uppercase;">Total PnL</h4>
-      <p [style.color]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" style="font-size: 2rem; font-weight: 700; margin: 0.5rem 0;">
-        {{ totalPnL >= 0 ? '+' : '' }}{{ totalPnL.toFixed(2) }} <span style="font-size: 1rem; opacity: 0.7;">USDT</span>
+  <!-- Metrics Bar -->
+  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
+    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid var(--primary);">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Total PnL</h4>
+      <p [style.color]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" style="font-size: 1.75rem; font-weight: 700; margin: 0.4rem 0;">
+        {{ totalPnL >= 0 ? '+' : '' }}{{ totalPnL.toFixed(2) }} <span style="font-size: 0.9rem; opacity: 0.6;">USDT</span>
       </p>
     </div>
-    <div class="glass-card">
-      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.8rem; text-transform: uppercase;">Win Rate</h4>
-      <p style="font-size: 2rem; font-weight: 700; margin: 0.5rem 0; color: var(--primary);">
+    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #8b5cf6;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Win Rate</h4>
+      <p style="font-size: 1.75rem; font-weight: 700; margin: 0.4rem 0; color: #a78bfa;">
         {{ winRate.toFixed(1) }}%
       </p>
     </div>
-    <div class="glass-card">
-      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.8rem; text-transform: uppercase;">Total Operations</h4>
-      <p style="font-size: 2rem; font-weight: 700; margin: 0.5rem 0;">
+    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #3b82f6;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Operations</h4>
+      <p style="font-size: 1.75rem; font-weight: 700; margin: 0.4rem 0; color: #60a5fa;">
         {{ trades.length }}
+      </p>
+    </div>
+    <div class="glass-card" style="padding: 1.25rem; border-left: 4px solid #f59e0b;">
+      <h4 style="color: var(--text-muted); margin: 0; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">Current RSI</h4>
+      <p style="font-size: 1.75rem; font-weight: 700; margin: 0.4rem 0; color: #fbbf24;">
+        {{ priceLogs.length > 0 ? (priceLogs[0].rsi | number:'1.1-1') : '---' }}
       </p>
     </div>
   </div>
 
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
-    <!-- Status Card -->
-    <div class="glass-card">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
-        <h3 style="color: var(--text-muted); margin: 0; font-size: 1.1rem;">Bot Status</h3>
-        <span *ngIf="status.has_position" 
-              class="badge pulse"
-              style="background: var(--primary); color: #000;">
-          {{ status.trade_type }}
-        </span>
-      </div>
-      
-      <div style="margin-bottom: 1rem;">
-        <span style="font-size: 2.25rem; font-weight: 700;">{{ status.has_position ? 'In Position' : 'Waiting' }}</span>
+  <!-- Main Dashboard Layout -->
+  <div style="display: grid; grid-template-columns: 350px 1fr; gap: 1.5rem; align-items: start;">
+    
+    <!-- Sidebar -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      <!-- Status Card -->
+      <div class="glass-card" style="position: relative; overflow: hidden;">
+        <div *ngIf="status.has_position" style="position: absolute; top: 0; right: 0; background: var(--primary); padding: 0.25rem 1rem; font-size: 0.7rem; font-weight: 900; color: #000; border-bottom-left-radius: 12px;">ACTIVE</div>
+        
+        <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">🤖</span> Bot Engine Status
+        </h3>
+        
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+          <div [style.color]="status.has_position ? 'var(--primary)' : 'var(--text-muted)'" style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+            {{ status.has_position ? 'TRADING' : 'WAITING' }}
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">{{ status.has_position ? 'Monitoring Take Profit / Stop Loss' : 'Scanning RSI for Entry Signal' }}</p>
+        </div>
+
+        <div *ngIf="status.has_position" style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 1rem; border: 1px solid rgba(255,255,255,0.05);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.7rem; color: var(--text-muted);">ENTRY</span>
+            <span style="font-weight: 700; color: var(--primary);">${{ formatPrice(status.last_buy_price) }}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <span style="font-size: 0.7rem; color: var(--text-muted);">TARGET TP</span>
+            <span style="font-weight: 700; color: var(--success);">${{ formatPrice(status.target_take_profit) }}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="font-size: 0.7rem; color: var(--text-muted);">STOP LOSS</span>
+            <span style="font-weight: 700; color: var(--danger);">${{ formatPrice(status.target_stop_loss) }}</span>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.5rem; font-size: 0.7rem; color: var(--text-muted); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+          Last Update: {{ formatDate(status.updated_at) }}
+        </div>
       </div>
 
-      <div *ngIf="status.has_position" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 1rem;">
-        <div>
-          <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0;">ENTRY</p>
-          <p style="font-weight: 600; color: var(--primary); margin: 0;">${{ formatPrice(status.last_buy_price) }}</p>
+      <!-- Market Feed Sidebar -->
+      <div class="glass-card" style="padding: 0;">
+        <div style="padding: 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="color: var(--text-muted); margin: 0; font-size: 1rem;">Market Feed</h3>
+          <button (click)="toggleMarketHistory()" class="btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.65rem;">HISTORIAL</button>
         </div>
-        <div>
-          <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0;">TARGET</p>
-          <p style="font-weight: 600; color: var(--success); margin: 0;">${{ formatPrice(status.target_take_profit) }}</p>
-        </div>
-        <div style="grid-column: span 2;">
-          <p style="font-size: 0.7rem; color: var(--text-muted); margin: 0;">STOP LOSS</p>
-          <p style="font-weight: 600; color: var(--danger); margin: 0;">${{ formatPrice(status.target_stop_loss) }}</p>
-        </div>
-      </div>
-
-      <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 1.25rem;">Last Update: {{ formatDate(status.updated_at) }}</p>
-    </div>
-
-    <!-- Portfolio Grid -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; grid-column: span 3;">
-      
-      <!-- Bot Acquired Assets -->
-      <div class="glass-card">
-        <h3 style="color: var(--text-muted); margin: 0; font-size: 1.1rem; margin-bottom: 1.5rem;">Bot Acquired Assets (In Trade)</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
-          <div *ngFor="let asset of botInventory" class="portfolio-item" style="background: rgba(0, 210, 255, 0.05); padding: 1.25rem; border-radius: 1.25rem; border: 1px solid var(--primary); transition: all 0.3s ease;">
-            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem;">
-              <span style="font-weight: 700; font-size: 1rem;">{{ asset.symbol }}</span>
+        <div style="max-height: 400px; overflow-y: auto; padding: 0.5rem 1.25rem;">
+          <div *ngFor="let log of priceLogs" style="display: flex; justify-content: space-between; align-items: center; padding: 0.8rem 0; border-bottom: 1px solid rgba(255,255,255,0.03);">
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">${{ formatPrice(log.price) }}</div>
+              <div style="font-size: 0.65rem; color: var(--text-muted);">{{ formatDate(log.timestamp) }}</div>
             </div>
-            <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">{{ asset.displayQuantity }}</div>
-            <div style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase;">Adquirido por el Bot</div>
-          </div>
-          <div *ngIf="!botInventory || botInventory.length === 0" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 1rem; border: 1px dashed var(--border); font-size: 0.8rem;">
-            Sin activos en operación activa.
-          </div>
-        </div>
-      </div>
-
-      <!-- General Wallet Balances -->
-      <div class="glass-card">
-        <h3 style="color: var(--text-muted); margin: 0; font-size: 1.1rem; margin-bottom: 1.5rem;">General Wallet Balances</h3>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-          <div *ngFor="let bal of balances" class="portfolio-item" style="background: rgba(255,255,255,0.03); padding: 0.75rem 1.25rem; border-radius: 1rem; border: 1px solid var(--border); min-width: 120px;">
-            <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">{{ bal.asset }}</div>
-            <div style="font-weight: 700; font-size: 1.1rem;">{{ bal.free }}</div>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Market Feed -->
-    <div class="glass-card" style="padding: 1.5rem 0;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin: 0 1.5rem 1rem;">
-        <h3 style="color: var(--text-muted); margin: 0; font-size: 1.1rem;">Market Feed</h3>
-        <button (click)="toggleMarketHistory()" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">VER HISTORIAL</button>
-      </div>
-      <div style="max-height: 300px; overflow-y: auto; padding: 0 1.5rem;">
-        <div *ngFor="let log of priceLogs" style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
-          <div>
-            <span style="font-weight: 600; font-size: 0.9rem;">{{ log.symbol }}</span>
-            <div style="font-size: 0.7rem; color: var(--text-muted);">{{ formatDate(log.timestamp) }}</div>
-          </div>
-          <div style="text-align: right;">
-            <div style="font-weight: 700;">${{ formatPrice(log.price) }}</div>
-            <span [style.color]="log.rsi > 70 ? 'var(--danger)' : (log.rsi < 30 ? 'var(--success)' : 'var(--text-main)')" style="font-size: 0.75rem; font-weight: 600;">
-              RSI: {{ log.rsi | number:'1.1-1' }}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Trades Table -->
-  <div class="glass-card" style="padding: 0;">
-    <div style="padding: 1.5rem 2rem; border-bottom: 1px solid var(--border);">
-      <h3 style="color: var(--text-muted); margin: 0; font-size: 1.1rem;">Recent Trades</h3>
-    </div>
-    <div style="overflow-x: auto;">
-      <table class="trade-table">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Side</th>
-            <th>Price</th>
-            <th>Target TP/SL</th>
-            <th>Quantity</th>
-            <th>PnL</th>
-            <th>Status</th>
-          </tr>
-          <tr class="filter-row">
-            <th></th>
-            <th><input [(ngModel)]="filters.trade_type" placeholder="Filtrar..."></th>
-            <th><input [(ngModel)]="filters.side" placeholder="Filtrar..."></th>
-            <th></th>
-            <th></th>
-            <th></th>
-            <th></th>
-            <th><input [(ngModel)]="filters.status" placeholder="Filtrar..."></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let trade of filteredTrades" style="background: rgba(255,255,255,0.02); transition: all 0.2s; border-radius: 12px;">
-            <td style="padding: 1.2rem 1.5rem; border-radius: 12px 0 0 12px; font-size: 0.85rem; color: var(--text-muted);">{{ formatDate(trade.timestamp) }}</td>
-            <td style="padding: 1.2rem 1.5rem;">
-              <span class="badge" style="background: rgba(0,210,255,0.1); color: var(--primary);">{{ trade.trade_type }}</span>
-            </td>
-            <td style="padding: 1.2rem 1.5rem;">
-              <span class="badge" [style.background]="trade.side === 'BUY' ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'" 
-                    [style.color]="trade.side === 'BUY' ? 'var(--success)' : 'var(--danger)'">
-                {{ trade.side }}
+            <div style="text-align: right;">
+              <span [style.background]="log.rsi > 65 ? 'rgba(239,68,68,0.1)' : (log.rsi < 35 ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.05)')" 
+                    [style.color]="log.rsi > 65 ? 'var(--danger)' : (log.rsi < 35 ? 'var(--success)' : 'var(--text-main)')"
+                    style="font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.5rem; border-radius: 4px;">
+                RSI: {{ log.rsi | number:'1.1-1' }}
               </span>
-            </td>
-            <td style="padding: 1.2rem 1.5rem; font-weight: 600;">${{ formatPrice(trade.price) }}</td>
-            <td style="padding: 1.2rem 1.5rem;">
-              <div *ngIf="trade.target_tp" style="font-size: 0.75rem; color: var(--success);">TP: ${{ formatPrice(trade.target_tp) }}</div>
-              <div *ngIf="trade.target_sl" style="font-size: 0.75rem; color: var(--danger);">SL: ${{ formatPrice(trade.target_sl) }}</div>
-            </td>
-            <td style="padding: 1.2rem 1.5rem;">{{ trade.quantity }}</td>
-            <td style="padding: 1.2rem 1.5rem; border-radius: 0 12px 12px 0; text-align: right; font-weight: 700; font-size: 1rem;" 
-                [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
-              {{ trade.pnl ? (trade.pnl > 0 ? '+' : '') + formatPrice(trade.pnl) + ' USDT' : '-' }}
-            </td>
-            <td style="padding: 1.2rem 1.5rem;">
-              <span *ngIf="trade.message" style="font-size: 0.7rem; color: var(--danger); font-weight: 600;">{{ trade.message }}</span>
-              <span *ngIf="!trade.message" style="font-size: 0.7rem; color: var(--success); font-weight: 600;">EXECUTED</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+      
+      <!-- Inventory & Balances Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+        <!-- Bot Inventory -->
+        <div class="glass-card" style="min-height: 200px;">
+          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.2rem;">💼</span> Bot Inventory
+          </h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+            <div *ngFor="let asset of botInventory" class="portfolio-item" style="background: linear-gradient(135deg, rgba(0,210,255,0.1) 0%, rgba(0,0,0,0) 100%); border: 1px solid var(--primary);">
+              <div style="font-size: 0.65rem; color: var(--primary); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">{{ asset.symbol }}</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #fff;">{{ asset.displayQuantity }}</div>
+              <div style="font-size: 0.6rem; color: var(--text-muted); margin-top: 0.25rem;">Bot Acquired</div>
+            </div>
+            <div *ngIf="!botInventory || botInventory.length === 0" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
+              No active bot positions.
+            </div>
+          </div>
+        </div>
+
+        <!-- Wallet Balances -->
+        <div class="glass-card" style="min-height: 200px;">
+          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.2rem;">🏦</span> Wallet Balance
+          </h3>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
+            <div *ngFor="let bal of balances" class="portfolio-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1);">
+              <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">{{ bal.asset }}</div>
+              <div style="font-size: 1.4rem; font-weight: 800; color: #fff;">{{ bal.free }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Trades Table -->
+      <div class="glass-card" style="padding: 0;">
+        <div style="padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+          <h3 style="color: var(--text-muted); margin: 0; font-size: 1rem;">Recent Trade Execution History</h3>
+          <div style="display: flex; gap: 0.5rem;">
+            <!-- Simple count indicator or something could go here -->
+          </div>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="trade-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Side</th>
+                <th>Price</th>
+                <th>Quantity</th>
+                <th>PnL</th>
+                <th>Status</th>
+              </tr>
+              <tr class="filter-row">
+                <th></th>
+                <th><input [(ngModel)]="filters.trade_type" placeholder="Search..."></th>
+                <th><input [(ngModel)]="filters.side" placeholder="Search..."></th>
+                <th></th>
+                <th></th>
+                <th></th>
+                <th><input [(ngModel)]="filters.status" placeholder="Search..."></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let trade of filteredTrades">
+                <td style="font-size: 0.8rem; color: var(--text-muted);">{{ formatDate(trade.timestamp) }}</td>
+                <td><span class="badge" style="background: rgba(0,210,255,0.1); color: var(--primary); font-size: 0.65rem;">{{ trade.trade_type }}</span></td>
+                <td>
+                  <span class="badge" [style.background]="trade.side === 'BUY' ? 'rgba(16,185,129,0.1)' : (trade.side === 'SELL' ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.05)')" 
+                        [style.color]="trade.side === 'BUY' ? 'var(--success)' : (trade.side === 'SELL' ? 'var(--danger)' : 'var(--text-muted)')"
+                        style="font-size: 0.65rem;">
+                    {{ trade.side }}
+                  </span>
+                </td>
+                <td style="font-weight: 700;">${{ formatPrice(trade.price) }}</td>
+                <td style="font-size: 0.85rem;">{{ trade.quantity }}</td>
+                <td [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')" style="font-weight: 800;">
+                  {{ trade.pnl ? (trade.pnl > 0 ? '+' : '') + formatPrice(trade.pnl) + ' USDT' : '-' }}
+                </td>
+                <td>
+                  <span *ngIf="trade.message" style="font-size: 0.65rem; color: var(--danger); opacity: 0.8;">{{ trade.message }}</span>
+                  <span *ngIf="!trade.message" style="font-size: 0.65rem; color: var(--success);">SUCCESS</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 
