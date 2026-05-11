@@ -69,6 +69,9 @@ class BotEngine:
                             self.last_buy_price = price
                             self.target_tp = new_tp
                             self.target_sl = new_sl
+                            # Configurar SL y TP en Binance
+                            self.exchange.set_sl_tp(SYMBOL, 'BUY', self.target_sl, self.target_tp, buy_quantity)
+                            
                             log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "LONG")
 
@@ -83,6 +86,9 @@ class BotEngine:
                             self.last_buy_price = price
                             self.target_tp = new_tp
                             self.target_sl = new_sl
+                            # Configurar SL y TP en Binance
+                            self.exchange.set_sl_tp(SYMBOL, 'SELL', self.target_sl, self.target_tp, sell_quantity)
+                            
                             log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "SHORT")
 
@@ -95,6 +101,8 @@ class BotEngine:
                             pnl = (price - self.last_buy_price) * qty
                             log_trade(SYMBOL, 'SELL', price, qty, balance_before=qty*price, pnl=pnl, trade_type="LONG")
                             self.has_position = False
+                            # Cancelar órdenes pendientes (SL/TP) en Binance
+                            self.exchange.cancel_all_orders(SYMBOL)
                             update_status(False, None, None, None, "LONG")
 
                 elif signal == 'BUY_BACK': # Close SHORT
@@ -106,6 +114,8 @@ class BotEngine:
                             pnl = (self.last_buy_price - price) * qty
                             log_trade(SYMBOL, 'BUY', price, qty, balance_before=qty*price, pnl=pnl, trade_type="SHORT")
                             self.has_position = False
+                            # Cancelar órdenes pendientes (SL/TP) en Binance
+                            self.exchange.cancel_all_orders(SYMBOL)
                             update_status(False, None, None, None, "SHORT")
                     else:
                         logging.warning("Señal SELL recibida pero no hay balance de activo.")
