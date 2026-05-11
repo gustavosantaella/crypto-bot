@@ -1,3 +1,5 @@
+import os
+
 # Símbolo de trading (Par de criptomonedas a operar)
 SYMBOL = 'SOLUSDT'
 
@@ -15,4 +17,4 @@ STOP_LOSS_PCT = 0.03    # Porcentaje de pérdida máxima (3%) antes de cerrar la
 TAKE_PROFIT_PCT = 0.05  # Porcentaje de ganancia objetivo (5%) para cerrar la posición
 
 # Intervalo de revisión del bot en segundos
-CHECK_INTERVAL = 10
+CHECK_INTERVAL = os.getenv("CHECK_INTERVAL", 5)
