@@ -111,31 +111,46 @@
       <!-- Inventory & Balances Grid -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
         <!-- Bot Inventory -->
-        <div class="glass-card" style="min-height: 200px;">
-          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.2rem;">💼</span> Bot Inventory
+        <div class="glass-card" style="min-height: 250px;">
+          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 8px; height: 8px; border-radius: 2px; background: var(--primary);"></div>
+            Bot Active Inventory
           </h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
-            <div *ngFor="let asset of botInventory" class="portfolio-item" style="background: linear-gradient(135deg, rgba(0,210,255,0.1) 0%, rgba(0,0,0,0) 100%); border: 1px solid var(--primary);">
-              <div style="font-size: 0.65rem; color: var(--primary); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">{{ asset.symbol }}</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #fff;">{{ asset.displayQuantity }}</div>
-              <div style="font-size: 0.6rem; color: var(--text-muted); margin-top: 0.25rem;">Bot Acquired</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.25rem;">
+            <div *ngFor="let asset of botInventory" class="portfolio-item">
+              <div class="asset-icon" [style.color]="asset.symbol.includes('SOL') ? '#8b5cf6' : 'var(--primary)'" [style.border-color]="asset.symbol.includes('SOL') ? 'rgba(139, 92, 246, 0.3)' : 'rgba(0, 210, 255, 0.3)'">
+                {{ asset.symbol.substring(0, 2) }}
+              </div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.25rem;">{{ asset.symbol }}</div>
+              <div style="font-size: 1.6rem; font-weight: 900; color: #fff; letter-spacing: -0.5px;">{{ asset.displayQuantity }}</div>
+              <div style="margin-top: auto; padding-top: 1rem;">
+                <div style="font-size: 0.6rem; color: var(--primary); font-weight: 800; background: rgba(0, 210, 255, 0.05); padding: 0.2rem 0.5rem; border-radius: 4px; display: inline-block;">IN TRADE</div>
+              </div>
             </div>
-            <div *ngIf="!botInventory || botInventory.length === 0" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px dashed rgba(255,255,255,0.1);">
-              No active bot positions.
+            <div *ngIf="!botInventory || botInventory.length === 0" style="grid-column: 1/-1; text-align: center; padding: 3rem 1rem; color: var(--text-muted); font-size: 0.85rem; background: rgba(255,255,255,0.02); border-radius: 1.25rem; border: 1px dashed rgba(255,255,255,0.1);">
+              <div style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.3;">📦</div>
+              No active bot positions at the moment.
             </div>
           </div>
         </div>
 
         <!-- Wallet Balances -->
-        <div class="glass-card" style="min-height: 200px;">
-          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-            <span style="font-size: 1.2rem;">🏦</span> Wallet Balance
+        <div class="glass-card" style="min-height: 250px;">
+          <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 8px; height: 8px; border-radius: 2px; background: #3b82f6;"></div>
+            Total Wallet Balance
           </h3>
-          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem;">
-            <div *ngFor="let bal of balances" class="portfolio-item" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1);">
-              <div style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; text-transform: uppercase; margin-bottom: 0.5rem;">{{ bal.asset }}</div>
-              <div style="font-size: 1.4rem; font-weight: 800; color: #fff;">{{ bal.free }}</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1.25rem;">
+            <div *ngFor="let bal of balances" class="portfolio-item">
+              <div class="asset-icon" [style.color]="bal.asset === 'USDT' ? '#10b981' : (bal.asset === 'BTC' ? '#f59e0b' : 'var(--text-main)')" 
+                   [style.border-color]="bal.asset === 'USDT' ? 'rgba(16, 185, 129, 0.3)' : (bal.asset === 'BTC' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(255,255,255,0.1)')">
+                {{ bal.asset.substring(0, 2) }}
+              </div>
+              <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 0.25rem;">{{ bal.asset }}</div>
+              <div style="font-size: 1.6rem; font-weight: 900; color: #fff; letter-spacing: -0.5px;">{{ bal.free | number:'1.2-8' }}</div>
+              <div *ngIf="bal.locked > 0" style="margin-top: 0.5rem; font-size: 0.65rem; color: #6b7280;">
+                Locked: {{ bal.locked | number:'1.2-8' }}
+              </div>
             </div>
           </div>
         </div>
