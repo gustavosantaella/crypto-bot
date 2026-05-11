@@ -14,6 +14,8 @@ export class CancelledTradesComponent implements OnInit {
   currentPage: number = 1;
   pageSize: number = 15;
   totalTrades: number = 0;
+  startDate: string = '';
+  endDate: string = '';
 
   constructor(
     private apiService: ApiService,
@@ -28,7 +30,7 @@ export class CancelledTradesComponent implements OnInit {
   loadPage(page: number) {
     this.currentPage = page;
     const skip = (page - 1) * this.pageSize;
-    this.apiService.getTrades(skip, this.pageSize, 'cancelled').subscribe({
+    this.apiService.getTrades(skip, this.pageSize, 'cancelled', this.startDate, this.endDate).subscribe({
       next: (data) => {
         this.totalTrades = data.total || 0;
         this.trades = data.trades || [];

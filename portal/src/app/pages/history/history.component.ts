@@ -14,6 +14,8 @@ export class HistoryComponent implements OnInit {
   currentPage: number = 1;
   pageSize: number = 15;
   totalLogs: number = 0;
+  startDate: string = '';
+  endDate: string = '';
 
   constructor(
     private apiService: ApiService,
@@ -29,7 +31,7 @@ export class HistoryComponent implements OnInit {
     this.currentPage = page;
     const skip = (page - 1) * this.pageSize;
     
-    this.apiService.getPriceLogs(skip, this.pageSize).subscribe({
+    this.apiService.getPriceLogs(skip, this.pageSize, this.startDate, this.endDate).subscribe({
       next: (data) => {
         console.log('History Price Logs raw:', data);
         this.totalLogs = data.total || 0;

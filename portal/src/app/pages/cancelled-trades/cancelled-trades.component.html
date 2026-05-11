@@ -2,7 +2,15 @@
   <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
     <div>
       <h2 style="color: var(--danger); font-size: 2rem; margin: 0; font-weight: 800;">Cancelled Operations</h2>
-      <p style="color: var(--text-muted); margin: 0;">Audit log of trades that failed to execute</p>
+      <div style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+        <p style="color: var(--text-muted); margin: 0; font-size: 0.85rem;">Audit log of failed trades</p>
+        <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.03); padding: 0.2rem 0.6rem; border-radius: 6px; border: 1px solid var(--border);">
+          <label style="font-size: 0.6rem; color: var(--text-muted);">FROM</label>
+          <input type="date" [(ngModel)]="startDate" (change)="loadPage(1)" style="background: transparent; border: none; color: var(--danger); font-size: 0.75rem;">
+          <label style="font-size: 0.6rem; color: var(--text-muted);">TO</label>
+          <input type="date" [(ngModel)]="endDate" (change)="loadPage(1)" style="background: transparent; border: none; color: var(--danger); font-size: 0.75rem;">
+        </div>
+      </div>
     </div>
     <button (click)="goBack()" class="btn-primary" style="padding: 0.6rem 1.2rem;">
       ← BACK TO TERMINAL

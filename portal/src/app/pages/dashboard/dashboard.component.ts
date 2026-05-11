@@ -27,7 +27,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   tradesPageSize: number = 10;
   totalTrades: number = 0;
 
-  filters = { side: '', trade_type: '', status: '' };
+  filters = { side: '', trade_type: '', status: '', startDate: '', endDate: '' };
   private refreshSub?: Subscription;
 
   constructor(
@@ -37,12 +37,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
   ) {}
 
   get filteredTrades() {
+    // Note: Most filtering is now backend-side for performance
     return this.trades.filter(t => {
       const matchSide = !this.filters.side || t.side.toLowerCase().includes(this.filters.side.toLowerCase());
       const matchType = !this.filters.trade_type || t.trade_type.toLowerCase().includes(this.filters.trade_type.toLowerCase());
-      const statusText = t.message ? 'CANCELLED' : 'EXECUTED';
-      const matchStatus = !this.filters.status || statusText.toLowerCase().includes(this.filters.status.toLowerCase());
-      return matchSide && matchType && matchStatus;
+      return matchSide && matchType;
     });
   }
 
@@ -100,7 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   loadTrades(page: number) {
     this.tradesPage = page;
     const skip = (page - 1) * this.tradesPageSize;
-    this.apiService.getTrades(skip, this.tradesPageSize, 'executed').subscribe({
+    this.apiService.getTrades(skip, this.tradesPageSize, 'executed', this.filters.startDate, this.filters.endDate).subscribe({
       next: (data) => {
         this.totalTrades = data.total || 0;
         this.trades = data.trades || [];

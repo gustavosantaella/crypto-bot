@@ -23,7 +23,14 @@ def read_root():
     return {"message": "Crypto Bot API is running"}
 
 @app.get("/trades")
-def get_trades(skip: int = 0, limit: int = 10, status: str = None, db: Session = Depends(get_db)):
+def get_trades(
+    skip: int = 0, 
+    limit: int = 10, 
+    status: str = None, 
+    start_date: str = None, 
+    end_date: str = None, 
+    db: Session = Depends(get_db)
+):
     query = db.query(models.Trade)
     
     if status == 'cancelled':
@@ -31,14 +38,32 @@ def get_trades(skip: int = 0, limit: int = 10, status: str = None, db: Session =
     elif status == 'executed':
         query = query.filter(models.Trade.message == None)
         
+    if start_date:
+        query = query.filter(models.Trade.timestamp >= start_date)
+    if end_date:
+        query = query.filter(models.Trade.timestamp <= end_date)
+        
     total = query.count()
     trades = query.order_by(models.Trade.timestamp.desc()).offset(skip).limit(limit).all()
     return {"total": total, "trades": trades}
 
 @app.get("/price-logs")
-def get_price_logs(skip: int = 0, limit: int = 15, db: Session = Depends(get_db)):
-    total = db.query(models.PriceLog).count()
-    logs = db.query(models.PriceLog).order_by(models.PriceLog.timestamp.desc()).offset(skip).limit(limit).all()
+def get_price_logs(
+    skip: int = 0, 
+    limit: int = 15, 
+    start_date: str = None, 
+    end_date: str = None, 
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.PriceLog)
+    
+    if start_date:
+        query = query.filter(models.PriceLog.timestamp >= start_date)
+    if end_date:
+        query = query.filter(models.PriceLog.timestamp <= end_date)
+        
+    total = query.count()
+    logs = query.order_by(models.PriceLog.timestamp.desc()).offset(skip).limit(limit).all()
     return {"total": total, "logs": logs}
 
 @app.get("/bot-status", response_model=schemas.BotStatus)

@@ -89,7 +89,18 @@
 
       <div class="glass-card" style="padding: 0;">
         <div class="card-header">
-          <span>Recent Trade Execution History</span>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <span>Trade History</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem; background: rgba(255,255,255,0.03); padding: 0.25rem 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
+              <label style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">FROM</label>
+              <input type="date" [(ngModel)]="filters.startDate" (change)="loadTrades(1)" 
+                     style="background: transparent; border: none; color: var(--primary); font-size: 0.75rem; outline: none;">
+              <div style="width: 1px; height: 12px; background: rgba(255,255,255,0.1);"></div>
+              <label style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700;">TO</label>
+              <input type="date" [(ngModel)]="filters.endDate" (change)="loadTrades(1)"
+                     style="background: transparent; border: none; color: var(--primary); font-size: 0.75rem; outline: none;">
+            </div>
+          </div>
           <button (click)="goToCancelled()" class="btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.3); color: var(--danger);">
             VIEW CANCELLED
           </button>
