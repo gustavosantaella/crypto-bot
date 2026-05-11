@@ -29,6 +29,7 @@ def main():
     sl = 99.4929
     
     print(f"Sincronizando TP/SL para {SYMBOL}: Side={side}, Qty={qty}, TP={tp}, SL={sl}")
+    exchange.cancel_all_orders(SYMBOL)
     exchange.set_sl_tp(SYMBOL, side, sl, tp, qty)
     print("Sincronización completada.")
 

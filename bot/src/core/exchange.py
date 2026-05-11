@@ -88,40 +88,48 @@ class ExchangeManager:
 
     def set_sl_tp(self, symbol, side, stop_loss, take_profit, quantity):
         try:
-            # Si el side original era BUY (LONG), el SL/TP debe ser SELL
-            # Si el side original era SELL (SHORT), el SL/TP debe ser BUY
             exit_side = 'SELL' if side == 'BUY' else 'BUY'
             
             rounded_sl = self.round_price(symbol, stop_loss)
             rounded_tp = self.round_price(symbol, take_profit)
             rounded_qty = self.round_quantity(symbol, quantity)
 
+            orders_placed = []
+
             # Crear Stop Loss
-            sl_order = self.client.futures_create_order(
-                symbol=symbol,
-                side=exit_side,
-                type='STOP_MARKET',
-                stopPrice=rounded_sl,
-                quantity=rounded_qty,
-                closePosition=True
-            )
-            logging.info(f"Stop Loss configurado en {rounded_sl}")
+            try:
+                sl_order = self.client.futures_create_order(
+                    symbol=symbol,
+                    side=exit_side,
+                    type='STOP_MARKET',
+                    stopPrice=rounded_sl,
+                    quantity=rounded_qty,
+                    reduceOnly=True
+                )
+                logging.info(f"SUCCESS: Stop Loss en {rounded_sl}")
+                orders_placed.append(sl_order)
+            except Exception as e:
+                logging.error(f"FAIL: Stop Loss ({rounded_sl}): {e}")
 
             # Crear Take Profit
-            tp_order = self.client.futures_create_order(
-                symbol=symbol,
-                side=exit_side,
-                type='TAKE_PROFIT_MARKET',
-                stopPrice=rounded_tp,
-                quantity=rounded_qty,
-                closePosition=True
-            )
-            logging.info(f"Take Profit configurado en {rounded_tp}")
+            try:
+                tp_order = self.client.futures_create_order(
+                    symbol=symbol,
+                    side=exit_side,
+                    type='TAKE_PROFIT_MARKET',
+                    stopPrice=rounded_tp,
+                    quantity=rounded_qty,
+                    reduceOnly=True
+                )
+                logging.info(f"SUCCESS: Take Profit en {rounded_tp}")
+                orders_placed.append(tp_order)
+            except Exception as e:
+                logging.error(f"FAIL: Take Profit ({rounded_tp}): {e}")
             
-            return sl_order, tp_order
+            return orders_placed
         except Exception as e:
-            logging.error(f"Error setting SL/TP: {e}")
-            return None, None
+            logging.error(f"Error general en set_sl_tp: {e}")
+            return []
 
     def cancel_all_orders(self, symbol):
         try:
