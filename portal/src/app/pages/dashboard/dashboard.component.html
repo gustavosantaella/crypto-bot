@@ -1,0 +1,122 @@
+<div class="container" style="padding: 2rem; max-width: 1600px; margin: 0 auto;">
+  <!-- Header -->
+  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <div>
+      <h1 class="gradient-text" style="font-size: 2.2rem; margin: 0; font-weight: 800; letter-spacing: -1px;">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
+      <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;">High-Frequency RSI Strategy • SOL/USDT</p>
+    </div>
+    <div class="glass-card" style="padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);">
+      <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
+           style="width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 15px currentcolor;"></div>
+      <span style="font-weight: 600; font-size: 0.85rem; letter-spacing: 1px;">{{ apiOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE' }}</span>
+    </div>
+  </header>
+
+  <!-- Metrics Bar -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+    <app-metric-card title="Total PnL" [value]="totalPnL.toFixed(2)" [prefix]="totalPnL >= 0 ? '+' : ''" suffix="USDT" [valueColor]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" color="var(--primary)"></app-metric-card>
+    <app-metric-card title="Win Rate" [value]="winRate.toFixed(1)" suffix="%" color="#8b5cf6" valueColor="#a78bfa"></app-metric-card>
+    <app-metric-card title="Operations" [value]="trades.length" color="#3b82f6" valueColor="#60a5fa"></app-metric-card>
+    <app-metric-card title="Current RSI" [value]="priceLogs.length > 0 ? (priceLogs[0].rsi | number:'1.1-1') : '---'" color="#f59e0b" valueColor="#fbbf24"></app-metric-card>
+  </div>
+
+  <!-- Main Dashboard Layout -->
+  <div class="dashboard-grid">
+    
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Status Card -->
+      <div class="glass-card" style="position: relative; overflow: hidden;">
+        <div *ngIf="status.has_position" class="active-badge">ACTIVE</div>
+        <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <span style="font-size: 1.2rem;">🤖</span> Bot Engine Status
+        </h3>
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+          <div [style.color]="status.has_position ? 'var(--primary)' : 'var(--text-muted)'" style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
+            {{ status.has_position ? 'TRADING' : 'WAITING' }}
+          </div>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">{{ status.has_position ? 'Monitoring Take Profit / Stop Loss' : 'Scanning RSI for Entry Signal' }}</p>
+        </div>
+
+        <div *ngIf="status.has_position" class="position-info">
+          <div class="info-row"><span>ENTRY</span><span class="val primary">${{ formatPrice(status.last_buy_price) }}</span></div>
+          <div class="info-row"><span>TARGET TP</span><span class="val success">${{ formatPrice(status.target_take_profit) }}</span></div>
+          <div class="info-row"><span>STOP LOSS</span><span class="val danger">${{ formatPrice(status.target_stop_loss) }}</span></div>
+        </div>
+
+        <div class="update-time">Last Update: {{ formatDate(status.updated_at) }}</div>
+      </div>
+
+      <!-- Market Feed Sidebar -->
+      <div class="glass-card" style="padding: 0;">
+        <div class="card-header">
+          <h3 style="color: var(--text-muted); margin: 0; font-size: 1rem;">Market Feed</h3>
+          <button (click)="goToHistory()" class="btn-primary" style="padding: 0.3rem 0.6rem; font-size: 0.65rem;">HISTORIAL</button>
+        </div>
+        <div class="feed-container">
+          <div *ngFor="let log of priceLogs" class="feed-item">
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">${{ formatPrice(log.price) }}</div>
+              <div style="font-size: 0.65rem; color: var(--text-muted);">{{ formatDate(log.timestamp) }}</div>
+            </div>
+            <div style="text-align: right;">
+              <span [class]="log.rsi > 65 ? 'rsi-tag danger' : (log.rsi < 35 ? 'rsi-tag success' : 'rsi-tag')">
+                RSI: {{ log.rsi | number:'1.1-1' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <div class="assets-grid">
+        <div class="glass-card">
+          <h3 class="card-title"><div class="dot primary"></div> Bot Active Inventory</h3>
+          <div class="assets-list">
+            <app-asset-card *ngFor="let asset of botInventory" [label]="asset.symbol" [amount]="asset.displayQuantity" subLabel="IN TRADE" [iconColor]="asset.symbol.includes('SOL') ? '#8b5cf6' : 'var(--primary)'"></app-asset-card>
+            <div *ngIf="!botInventory || botInventory.length === 0" class="empty-state">No active bot positions.</div>
+          </div>
+        </div>
+        <div class="glass-card">
+          <h3 class="card-title"><div class="dot secondary"></div> Total Wallet Balance</h3>
+          <div class="assets-list">
+            <app-asset-card *ngFor="let bal of balances" [label]="bal.asset" [amount]="bal.free | number:'1.2-8'" [locked]="bal.locked" [iconColor]="bal.asset === 'USDT' ? '#10b981' : (bal.asset === 'BTC' ? '#f59e0b' : 'var(--text-main)')"></app-asset-card>
+          </div>
+        </div>
+      </div>
+
+      <div class="glass-card" style="padding: 0;">
+        <div class="card-header">Recent Trade Execution History</div>
+        <div style="overflow-x: auto;">
+          <table class="trade-table">
+            <thead>
+              <tr><th>Time</th><th>Type</th><th>Side</th><th>Price</th><th>Quantity</th><th>PnL</th><th>Status</th></tr>
+              <tr class="filter-row">
+                <th></th>
+                <th><input [(ngModel)]="filters.trade_type" placeholder="Type..."></th>
+                <th><input [(ngModel)]="filters.side" placeholder="Side..."></th>
+                <th></th><th></th><th></th>
+                <th><input [(ngModel)]="filters.status" placeholder="Status..."></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let trade of filteredTrades">
+                <td class="muted">{{ formatDate(trade.timestamp) }}</td>
+                <td><span class="badge primary">{{ trade.trade_type }}</span></td>
+                <td><span class="badge" [class.success]="trade.side === 'BUY'" [class.danger]="trade.side === 'SELL'">{{ trade.side }}</span></td>
+                <td class="bold">${{ formatPrice(trade.price) }}</td>
+                <td>{{ trade.quantity }}</td>
+                <td class="bold" [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
+                  {{ trade.pnl ? (trade.pnl > 0 ? '+' : '') + formatPrice(trade.pnl) + ' USDT' : '-' }}
+                </td>
+                <td><span [class]="trade.message ? 'text-danger' : 'text-success'">{{ trade.message || 'SUCCESS' }}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
