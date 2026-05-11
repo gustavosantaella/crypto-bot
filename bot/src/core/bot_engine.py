@@ -71,7 +71,10 @@ class BotEngine:
                     buy_quantity = amount_to_spend / price
                     
                     if not self._check_notional(price, buy_quantity):
-                        logging.warning(f"Orden BUY cancelada: Valor insuficiente ({price * buy_quantity:.2f} < 10 USDT)")
+                        msg = f"Insufficient Notional: {price * buy_quantity:.2f} < 10 USDT"
+                        logging.warning(f"Orden BUY cancelada: {msg}")
+                        log_trade(SYMBOL, 'CANCELLED', price, buy_quantity, balance_before=balance_usdt, 
+                                  trade_type=self.trade_type, message=msg)
                         continue
 
                     balance_before = balance_usdt

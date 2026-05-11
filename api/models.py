@@ -15,6 +15,7 @@ class Trade(Base):
     target_tp = Column(Numeric(20, 8))
     target_sl = Column(Numeric(20, 8))
     trade_type = Column(String(10), default="LONG")
+    message = Column(String(100), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 class PriceLog(Base):

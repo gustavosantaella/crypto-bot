@@ -31,6 +31,7 @@ class Trade(Base):
     target_tp = Column(Numeric(20, 8))
     target_sl = Column(Numeric(20, 8))
     trade_type = Column(String(10), default="LONG")
+    message = Column(String(100), nullable=True)
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
 class PriceLog(Base):
@@ -51,7 +52,7 @@ class BotStatus(Base):
     trade_type = Column(String(10), default="LONG")
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-def log_trade(symbol, side, price, quantity, balance_before=None, pnl=None, target_tp=None, target_sl=None, trade_type="LONG"):
+def log_trade(symbol, side, price, quantity, balance_before=None, pnl=None, target_tp=None, target_sl=None, trade_type="LONG", message=None):
     db = SessionLocal()
     try:
         trade = Trade(
@@ -63,7 +64,8 @@ def log_trade(symbol, side, price, quantity, balance_before=None, pnl=None, targ
             pnl=pnl,
             target_tp=target_tp,
             target_sl=target_sl,
-            trade_type=trade_type
+            trade_type=trade_type,
+            message=message
         )
         db.add(trade)
         db.commit()

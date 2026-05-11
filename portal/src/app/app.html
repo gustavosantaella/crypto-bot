@@ -119,6 +119,7 @@
             <th>Target TP/SL</th>
             <th>Quantity</th>
             <th>PnL</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
@@ -142,6 +143,10 @@
             <td style="padding: 1.2rem 1.5rem; border-radius: 0 12px 12px 0; text-align: right; font-weight: 700; font-size: 1rem;" 
                 [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
               {{ trade.pnl ? (trade.pnl > 0 ? '+' : '') + formatPrice(trade.pnl) + ' USDT' : '-' }}
+            </td>
+            <td style="padding: 1.2rem 1.5rem;">
+              <span *ngIf="trade.message" style="font-size: 0.7rem; color: var(--danger); font-weight: 600;">{{ trade.message }}</span>
+              <span *ngIf="!trade.message" style="font-size: 0.7rem; color: var(--success); font-weight: 600;">EXECUTED</span>
             </td>
           </tr>
         </tbody>

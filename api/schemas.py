@@ -13,6 +13,7 @@ class TradeBase(BaseModel):
     target_tp: Optional[Decimal] = None
     target_sl: Optional[Decimal] = None
     trade_type: str = "LONG"
+    message: Optional[str] = None
 
 class Trade(TradeBase):
     id: int
