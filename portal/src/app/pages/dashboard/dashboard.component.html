@@ -1,9 +1,14 @@
 <div class="container" style="padding: 2rem; max-width: 1600px; margin: 0 auto;">
   <!-- Header -->
   <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div>
-      <h1 class="gradient-text" style="font-size: 2.2rem; margin: 0; font-weight: 800; letter-spacing: -1px;">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
-      <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;">High-Frequency RSI Strategy • SOL/USDT</p>
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <div>
+        <h1 class="gradient-text" style="font-size: 2.2rem; margin: 0; font-weight: 800; letter-spacing: -1px;">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
+        <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;">High-Frequency RSI Strategy • SOL/USDT</p>
+      </div>
+      <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1.25rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; border-color: var(--primary); color: var(--primary);">
+        <span style="font-size: 1.1rem;">📄</span> DOCS
+      </button>
     </div>
     <div class="glass-card" style="padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);">
       <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
@@ -187,6 +192,56 @@
             NEXT
           </button>
         </div>
+      </div>
+  </div>
+
+  <!-- Documentation Modal -->
+  <div *ngIf="showDocs" class="modal-overlay" (click)="showDocs = false" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 20000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+    <div class="glass-card" (click)="$event.stopPropagation()" style="width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 2.5rem; position: relative; border-color: rgba(255,255,255,0.1);">
+      <button (click)="showDocs = false" style="position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+      
+      <h2 class="gradient-text" style="margin: 0 0 2rem; font-size: 1.8rem; font-weight: 800;">Technical Documentation</h2>
+      
+      <div style="display: grid; gap: 2rem;">
+        <section>
+          <h3 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(0, 210, 255, 0.2); padding-bottom: 0.25rem;">📊 RSI (Relative Strength Index)</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            Indicador de tipo oscilador que mide la velocidad y el cambio de los movimientos de precios. Se utiliza para identificar condiciones de <b>sobrecompra (RSI > 70)</b> o <b>sobreventa (RSI < 30)</b>. El bot utiliza estas señales para anticipar reversiones de tendencia.
+          </p>
+        </section>
+
+        <section>
+          <h3 style="color: var(--success); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(16, 185, 129, 0.2); padding-bottom: 0.25rem;">📉 ATR (Average True Range)</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            Indicador que mide la <b>volatilidad del mercado</b>. El bot utiliza el ATR para calcular distancias de Stop Loss y Take Profit dinámicas. Si el mercado está muy volátil, el ATR aumenta y el bot "aleja" los objetivos para evitar ser sacado por ruido de precio.
+          </p>
+        </section>
+
+        <section>
+          <h3 style="color: #f59e0b; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 0.25rem;">⚖️ Leverage (Apalancamiento)</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            Herramienta que permite operar con un capital mayor al que realmente se tiene en la billetera. Un apalancamiento de <b>5x</b> significa que por cada $1 de tu balance, el bot abre una posición de $5. Esto amplifica tanto las ganancias como las posibles pérdidas.
+          </p>
+        </section>
+
+        <section>
+          <h3 style="color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 0.25rem;">🔄 Long vs Short</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            <b>LONG:</b> Apuesta a que el precio subirá. Se entra comprando y se sale vendiendo.<br>
+            <b>SHORT:</b> Apuesta a que el precio bajará. Se entra vendiendo (prestado) y se sale comprando (devolviendo) a un precio menor.
+          </p>
+        </section>
+
+        <section>
+          <h3 style="color: #ef4444; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 0.25rem;">💰 PnL (Profit and Loss)</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
+            El <b>PnL Realizado</b> es la ganancia o pérdida neta que se consolida al momento de cerrar una operación. Se calcula restando los costos de entrada de los beneficios de salida, ajustado por la dirección del trade (Long/Short).
+          </p>
+        </section>
+      </div>
+
+      <div style="margin-top: 2.5rem; text-align: center;">
+        <button (click)="showDocs = false" class="btn-primary" style="padding: 0.75rem 2rem; border-radius: 100px;">ENTENDIDO</button>
       </div>
     </div>
   </div>

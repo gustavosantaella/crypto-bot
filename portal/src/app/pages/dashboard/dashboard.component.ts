@@ -22,6 +22,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   winRate: number = 0;
   apiOnline: boolean = false;
   botInventory: any[] = [];
+  showDocs: boolean = false;
   
   tradesPage: number = 1;
   tradesPageSize: number = 10;
