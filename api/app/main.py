@@ -1,16 +1,27 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.api import api_router
 from app.core.config import settings
 from app.db.session import engine
 from app.models import models
+from app.telegram.service import telegram_bot
 
 # Create tables
 models.Base.metadata.create_all(bind=engine)
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Start Telegram Bot
+    telegram_bot.start()
+    yield
+    # Shutdown: Cleanup lock
+    telegram_bot.stop()
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # Set all CORS enabled origins

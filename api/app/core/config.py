@@ -23,7 +23,10 @@ class Settings(BaseSettings):
     
     BINANCE_API_KEY: str = os.getenv("BINANCE_API_KEY", "")
     BINANCE_SECRET_KEY: str = os.getenv("BINANCE_SECRET_KEY", "")
-    IS_TESTNET: bool = os.getenv("IS_TESTNET", "True") == "True"
+    IS_TESTNET: bool = str(os.getenv("IS_TESTNET", "True")).lower() == "true"
+    
+    TELEGRAM_TOKEN: str = os.getenv("TELEGRAM_TOKEN", "")
+    TELEGRAM_ID: int = int(os.getenv("TELEGRAM_ID", "0"))
     
     # Database config
     DB_USER: str = os.getenv("DB_USER", "root")
