@@ -30,9 +30,9 @@ class ExchangeManager:
         if not self.client:
             return
         try:
-            server_time = self.client.get_server_time()
+            server_time = self.client.futures_time()
             self.client.timestamp_offset = server_time['serverTime'] - int(time.time() * 1000)
-            print(f"DEBUG: Time synced. Offset: {self.client.timestamp_offset}ms")
+            print(f"DEBUG: Time synced (Futures). Offset: {self.client.timestamp_offset}ms")
         except Exception as e:
             print(f"DEBUG: Error syncing time: {e}")
 
@@ -44,14 +44,24 @@ class ExchangeManager:
             return []
             
         try:
-            account_info = self.client.get_account()
-            balances = account_info.get('balances', [])
-            print(f"DEBUG: Found {len(balances)} total assets in account")
-            filtered = [b for b in balances if float(b['free']) > 0 or float(b['locked']) > 0]
-            print(f"DEBUG: Filtered to {len(filtered)} assets with balance > 0")
+            # En Futuros usamos futures_account_balance
+            balances = self.client.futures_account_balance()
+            filtered = []
+            for b in balances:
+                # Keys en Binance Futures: asset, balance, availableBalance, etc.
+                free = float(b.get('availableBalance', 0))
+                total = float(b.get('balance', 0))
+                locked = total - free
+                if total > 0:
+                    filtered.append({
+                        "asset": b['asset'],
+                        "free": str(free),
+                        "locked": str(max(0, locked))
+                    })
+            print(f"DEBUG: Found {len(filtered)} futures assets with balance > 0")
             return filtered
         except Exception as e:
-            print(f"DEBUG: Error in get_all_balances: {e}")
+            print(f"DEBUG: Error in get_all_balances (Futures): {e}")
             return []
 
     def get_asset_balance(self, asset):
@@ -61,7 +71,13 @@ class ExchangeManager:
         if not self.client:
             return {"asset": asset, "free": "0", "locked": "0"}
         try:
-            balance = self.client.get_asset_balance(asset=asset)
-            return balance if balance else {"asset": asset, "free": "0", "locked": "0"}
+            balances = self.client.futures_account_balance()
+            for b in balances:
+                if b['asset'] == asset:
+                    free = float(b.get('availableBalance', 0))
+                    total = float(b.get('balance', 0))
+                    locked = total - free
+                    return {"asset": asset, "free": str(free), "locked": str(max(0, locked))}
+            return {"asset": asset, "free": "0", "locked": "0"}
         except Exception as e:
             return {"asset": asset, "free": "0", "locked": "0"}

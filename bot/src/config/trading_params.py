@@ -21,3 +21,7 @@ TAKE_PROFIT_PCT = float(os.getenv("TAKE_PROFIT_PCT", 0.05))
 
 # Intervalo de revisión del bot en segundos
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 5))
+
+# Configuración de Futuros
+LEVERAGE = int(os.getenv("LEVERAGE", 5))
+MARGIN_TYPE = os.getenv("MARGIN_TYPE", "ISOLATED") # ISOLATED o CROSSED

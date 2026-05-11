@@ -26,18 +26,18 @@ class RSIStrategy:
             # Lógica para entrar en LONG
             if rsi < RSI_OVERSOLD:
                 return 'BUY'
-            # Lógica para entrar en SHORT (opcional, solo si usas Futuros)
-            # if rsi > RSI_OVERBOUGHT: return 'SELL_SHORT'
+            # Lógica para entrar en SHORT
+            if rsi > RSI_OVERBOUGHT:
+                return 'SELL_SHORT'
         else:
             if trade_type == "LONG":
-                # Salida por RSI Sobrecompra
-                if rsi > RSI_OVERBOUGHT:
-                    return 'SELL'
-                
-                # Salida por Take Profit o Stop Loss
-                if target_tp and current_price >= target_tp:
-                    return 'SELL'
-                if target_sl and current_price <= target_sl:
-                    return 'SELL'
+                if rsi > RSI_OVERBOUGHT: return 'SELL'
+                if target_tp and current_price >= target_tp: return 'SELL'
+                if target_sl and current_price <= target_sl: return 'SELL'
+            
+            elif trade_type == "SHORT":
+                if rsi < RSI_OVERSOLD: return 'BUY_BACK'
+                if target_tp and current_price <= target_tp: return 'BUY_BACK'
+                if target_sl and current_price >= target_sl: return 'BUY_BACK'
                     
         return 'HOLD'

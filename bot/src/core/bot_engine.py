@@ -20,96 +20,91 @@ class BotEngine:
         update_status(self.has_position, self.last_buy_price, self.target_tp, self.target_sl, self.trade_type)
 
     def _recover_state(self):
-        # 1. Recuperar del exchange (Saldo real)
-        balance = self.exchange.get_balance('SOL')
-        self.has_position = balance > 0.01 # Umbral mínimo para detectar posición (aprox $1)
-        
-        # 2. Recuperar de DB (Estado lógico)
-        status = get_last_status()
-        if status:
-            self.last_buy_price = float(status.last_buy_price) if status.last_buy_price else None
-            self.target_tp = float(status.target_take_profit) if status.target_take_profit else None
-            self.target_sl = float(status.target_stop_loss) if status.target_stop_loss else None
-            self.trade_type = status.trade_type if status.trade_type else "LONG"
+        try:
+            positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
+            pos = next((p for p in positions if p['symbol'] == SYMBOL), None)
+            if pos:
+                amount = float(pos['positionAmt'])
+                self.has_position = abs(amount) > 0.001
+                if self.has_position:
+                    self.trade_type = "LONG" if amount > 0 else "SHORT"
             
-            if self.has_position and not self.last_buy_price:
-                logging.warning("Posición detectada sin precio de compra en DB.")
-        
-        logging.info(f"Bot listo. Posición: {self.has_position} | TP: {self.target_tp} | SL: {self.target_sl}")
-
-    def _check_notional(self, price, quantity):
-        return (price * quantity) >= 10.0 # Mínimo 10 USDT
+            status = get_last_status()
+            if status:
+                self.last_buy_price = float(status.last_buy_price) if status.last_buy_price else None
+                self.target_tp = float(status.target_take_profit) if status.target_take_profit else None
+                self.target_sl = float(status.target_stop_loss) if status.target_stop_loss else None
+                if not self.has_position: # Si no hay posicion real, resetear
+                    self.last_buy_price = self.target_tp = self.target_sl = None
+            
+            logging.info(f"Bot FUTUROS listo. Posición: {self.has_position} ({self.trade_type})")
+        except Exception as e:
+            logging.error(f"Error recovering state: {e}")
 
     def start(self):
-        logging.info("--- Iniciando Motor del Bot ---")
+        logging.info("--- Iniciando Motor FUTUROS ---")
+        from src.config.trading_params import LEVERAGE
         while True:
             try:
                 price = self.exchange.get_ticker_price(SYMBOL)
-                klines = self.exchange.get_klines(SYMBOL, interval='1m')
-                
-                if not price or not klines:
-                    continue
+                klines = self.exchange.get_klines(SYMBOL)
+                if not price or not klines: continue
 
                 rsi = RSIStrategy.calculate_rsi(klines)
-                signal = RSIStrategy.get_signal(
-                    rsi, 
-                    price, 
-                    self.has_position, 
-                    target_tp=self.target_tp, 
-                    target_sl=self.target_sl,
-                    trade_type=self.trade_type
-                )
-                
-                # Log price to DB
+                signal = RSIStrategy.get_signal(rsi, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
                 log_price(SYMBOL, price, rsi)
-                
                 logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | Signal: {signal}")
 
-                if signal == 'BUY':
+                if signal == 'BUY': # Open LONG
                     balance_usdt = self.exchange.get_balance('USDT')
-                    amount_to_spend = balance_usdt * TRADE_PERCENTAGE
-                    buy_quantity = amount_to_spend / price
+                    # Cantidad con apalancamiento
+                    buy_quantity = (balance_usdt * TRADE_PERCENTAGE * LEVERAGE) / price
                     
-                    if not self._check_notional(price, buy_quantity):
-                        msg = f"Insufficient Notional: {price * buy_quantity:.2f} < 10 USDT"
-                        logging.warning(f"Orden BUY cancelada: {msg}")
-                        log_trade(SYMBOL, 'CANCELLED', price, buy_quantity, balance_before=balance_usdt, 
-                                  trade_type=self.trade_type, message=msg)
-                        continue
+                    if self._check_notional(price, buy_quantity):
+                        if self.exchange.execute_market_order(SYMBOL, 'BUY', buy_quantity):
+                            self.has_position = True
+                            self.trade_type = "LONG"
+                            self.last_buy_price = price
+                            self.target_tp = price * (1 + TAKE_PROFIT_PCT)
+                            self.target_sl = price * (1 - STOP_LOSS_PCT)
+                            log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
+                            update_status(True, price, self.target_tp, self.target_sl, "LONG")
 
-                    balance_before = balance_usdt
-                    if self.exchange.execute_market_order(SYMBOL, 'BUY', buy_quantity):
-                        self.has_position = True
-                        self.last_buy_price = price
-                        self.target_tp = price * (1 + TAKE_PROFIT_PCT)
-                        self.target_sl = price * (1 - STOP_LOSS_PCT)
-                        
-                        # Guardamos la cantidad real comprada (redondeada por el exchange)
-                        actual_qty = self.exchange.round_quantity(SYMBOL, buy_quantity)
-                        
-                        log_trade(SYMBOL, 'BUY', price, actual_qty, balance_before=balance_before, 
-                                  target_tp=self.target_tp, target_sl=self.target_sl)
-                        update_status(True, price, self.target_tp, self.target_sl, self.trade_type)
-                        logging.info(f"COMPRA EJECUTADA | Cantidad: {actual_qty} | TP: {self.target_tp} | SL: {self.target_sl}")
-                        
-                elif signal == 'SELL':
-                    # Vendemos todo el balance del activo (SOL) para cerrar posición
-                    base_asset = SYMBOL.replace('USDT', '')
-                    balance_base = self.exchange.get_balance(base_asset)
+                elif signal == 'SELL_SHORT': # Open SHORT
+                    balance_usdt = self.exchange.get_balance('USDT')
+                    sell_quantity = (balance_usdt * TRADE_PERCENTAGE * LEVERAGE) / price
                     
-                    if balance_base > 0:
-                        if self.exchange.execute_market_order(SYMBOL, 'SELL', balance_base):
-                            pnl = (price - self.last_buy_price) * balance_base if self.last_buy_price else 0
-                            
-                            log_trade(SYMBOL, 'SELL', price, balance_base, balance_before=balance_base, pnl=pnl,
-                                      target_tp=self.target_tp, target_sl=self.target_sl)
-                            
+                    if self._check_notional(price, sell_quantity):
+                        if self.exchange.execute_market_order(SYMBOL, 'SELL', sell_quantity):
+                            self.has_position = True
+                            self.trade_type = "SHORT"
+                            self.last_buy_price = price
+                            self.target_tp = price * (1 - TAKE_PROFIT_PCT) # TP abajo para SHORT
+                            self.target_sl = price * (1 + STOP_LOSS_PCT)   # SL arriba para SHORT
+                            log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
+                            update_status(True, price, self.target_tp, self.target_sl, "SHORT")
+
+                elif signal == 'SELL': # Close LONG
+                    positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
+                    pos = next((p for p in positions if p['symbol'] == SYMBOL), None)
+                    if pos:
+                        qty = abs(float(pos['positionAmt']))
+                        if self.exchange.execute_market_order(SYMBOL, 'SELL', qty):
+                            pnl = (price - self.last_buy_price) * qty
+                            log_trade(SYMBOL, 'SELL', price, qty, balance_before=qty*price, pnl=pnl, trade_type="LONG")
                             self.has_position = False
-                            self.last_buy_price = None
-                            self.target_tp = None
-                            self.target_sl = None
-                            update_status(False, None, None, None, self.trade_type)
-                            logging.info(f"VENTA EJECUTADA | PnL: {pnl:.4f}")
+                            update_status(False, None, None, None, "LONG")
+
+                elif signal == 'BUY_BACK': # Close SHORT
+                    positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
+                    pos = next((p for p in positions if p['symbol'] == SYMBOL), None)
+                    if pos:
+                        qty = abs(float(pos['positionAmt']))
+                        if self.exchange.execute_market_order(SYMBOL, 'BUY', qty):
+                            pnl = (self.last_buy_price - price) * qty # Invertido para SHORT
+                            log_trade(SYMBOL, 'BUY', price, qty, balance_before=qty*price, pnl=pnl, trade_type="SHORT")
+                            self.has_position = False
+                            update_status(False, None, None, None, "SHORT")
                     else:
                         logging.warning("Señal SELL recibida pero no hay balance de activo.")
 
