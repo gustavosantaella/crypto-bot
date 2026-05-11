@@ -1,0 +1,4 @@
+/* Specific component styles */
+tr:last-child {
+  border-bottom: none;
+}
