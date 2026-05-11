@@ -80,8 +80,13 @@ export class App implements OnInit, OnDestroy {
     this.apiService.getTrades().subscribe({
       next: (data) => {
         console.log('Trades data:', data);
-        this.trades = Array.isArray(data) ? data : [];
+        const rawTrades = Array.isArray(data) ? data : [];
+        // Sort DESC (most recent first)
+        this.trades = rawTrades.sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
         this.calculatePerformance();
+        this.calculateBotInventory();
         this.cdr.detectChanges();
       },
       error: (err) => console.error('Error fetching trades:', err)
@@ -133,6 +138,37 @@ export class App implements OnInit, OnDestroy {
     } catch (e) {
       console.error('Error calculating performance:', e);
     }
+  }
+
+  calculateBotInventory() {
+    const inventory: { [key: string]: number } = {};
+    
+    // Sort trades by timestamp ascending
+    const sortedTrades = [...this.trades].sort((a, b) => 
+      new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    sortedTrades.forEach(trade => {
+      const symbol = trade.symbol;
+      const qty = parseFloat(trade.quantity);
+      
+      if (!inventory[symbol]) inventory[symbol] = 0;
+      
+      if (trade.side === 'BUY') {
+        inventory[symbol] += qty;
+      } else if (trade.side === 'SELL') {
+        inventory[symbol] -= qty;
+      }
+    });
+
+    // Convert to array
+    this.botInventory = Object.keys(inventory)
+      .map(symbol => ({
+        symbol,
+        quantity: inventory[symbol],
+        displayQuantity: inventory[symbol].toFixed(4)
+      }))
+      .filter(item => item.quantity > 0.0001);
   }
 
   formatPrice(price: any) {
