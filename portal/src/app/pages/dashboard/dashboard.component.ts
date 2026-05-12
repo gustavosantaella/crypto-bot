@@ -8,6 +8,34 @@ import { interval, Subscription } from 'rxjs';
 import { MetricCard } from '../../components/metric-card';
 import { AssetCard } from '../../components/asset-card';
 
+interface Trade {
+  id: number;
+  timestamp: string;
+  symbol: string;
+  side: string;
+  trade_type: string;
+  price: any;
+  quantity: any;
+  target_tp?: any;
+  target_sl?: any;
+  pnl?: any;
+  balance_before?: any;
+  message?: string;
+}
+
+interface PriceLog {
+  symbol: string;
+  price: number;
+  rsi: number;
+  timestamp: string;
+}
+
+interface Balance {
+  asset: string;
+  free: number;
+  locked: number;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -16,11 +44,12 @@ import { AssetCard } from '../../components/asset-card';
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   status: any = { has_position: false, last_buy_price: 0 };
-  trades: any[] = [];
-  priceLogs: any[] = [];
-  balances: any[] = [];
+  trades: Trade[] = [];
+  priceLogs: PriceLog[] = [];
+  balances: Balance[] = [];
   totalPnL: number = 0;
   winRate: number = 0;
+  totalROI: number = 0;
   apiOnline: boolean = false;
   botInventory: any[] = [];
   showDocs: boolean = false;
@@ -40,12 +69,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private router: Router
   ) {}
 
-  get filteredTrades() {
-    // Note: Most filtering is now backend-side for performance
+  get filteredTrades(): Trade[] {
     return this.trades.filter(t => {
       const matchSide = !this.filters.side || t.side.toLowerCase().includes(this.filters.side.toLowerCase());
       const matchType = !this.filters.trade_type || t.trade_type.toLowerCase().includes(this.filters.trade_type.toLowerCase());
-      return matchSide && matchType;
+      const matchStatus = !this.filters.status || (t.message || 'SUCCESS').toLowerCase().includes(this.filters.status.toLowerCase());
+      return matchSide && matchType && matchStatus;
     });
   }
 
@@ -59,7 +88,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetchData();
-    // Bajamos el polling ya que tenemos WS
     this.refreshSub = interval(60000).subscribe(() => this.fetchData());
     
     this.wsSub = this.wsService.getMessages().subscribe(msg => {
@@ -71,7 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     const { type, data } = msg;
     
     if (type === 'PRICE_UPDATE') {
-      const newLog = {
+      const newLog: PriceLog = {
         symbol: data.symbol,
         price: parseFloat(data.price),
         rsi: parseFloat(data.rsi),
@@ -88,8 +116,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }
     else if (type === 'NEW_TRADE') {
       this.loadTrades(1);
-      this.apiService.getBalance().subscribe(data => {
-         const bals = data && data.balances ? data.balances : [];
+      this.apiService.getBalance().subscribe(res => {
+         const bals = res && res.balances ? res.balances : [];
          this.balances = bals.map((b: any) => ({
            asset: b.asset,
            free: parseFloat(b.free || '0'),
@@ -108,36 +136,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   fetchData() {
     this.apiService.getBotStatus().subscribe({
-      next: (data) => {
+      next: (data: any) => {
         this.status = data || { has_position: false, last_buy_price: 0 };
         this.apiOnline = true;
         this.cdr.detectChanges();
       },
-      error: () => { this.apiOnline = false; this.cdr.detectChanges(); }
+      error: () => { 
+        this.apiOnline = false; 
+        this.cdr.detectChanges(); 
+      }
     });
 
     this.loadTrades(1);
 
     this.apiService.getBalance().subscribe({
-      next: (data) => {
+      next: (data: any) => {
         const bals = data && data.balances ? data.balances : [];
         this.balances = bals.map((b: any) => ({
           asset: b.asset,
           free: parseFloat(b.free || '0'),
           locked: parseFloat(b.locked || '0')
-        }));
-        this.cdr.detectChanges();
-      }
-    });
-
-    this.apiService.getPriceLogs(0, 10).subscribe({
-      next: (data) => {
-        const logs = data && data.logs ? data.logs : [];
-        this.priceLogs = logs.map((p: any) => ({
-          symbol: p.symbol,
-          price: parseFloat(p.price || '0'),
-          rsi: parseFloat(p.rsi || '0'),
-          timestamp: p.timestamp
         }));
         this.cdr.detectChanges();
       }
@@ -148,7 +166,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.tradesPage = page;
     const skip = (page - 1) * this.tradesPageSize;
     this.apiService.getTrades(skip, this.tradesPageSize, 'executed', this.filters.startDate, this.filters.endDate).subscribe({
-      next: (data) => {
+      next: (data: any) => {
         this.totalTrades = data.total || 0;
         this.trades = data.trades || [];
         this.calculatePerformance();
@@ -162,11 +180,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/trades/cancelled']);
   }
 
-  get totalPagesTrades() {
-    return Math.ceil(this.totalTrades / this.tradesPageSize);
+  get totalPagesTrades(): number {
+    return Math.ceil(this.totalTrades / this.tradesPageSize) || 1;
   }
-
-  totalROI: number = 0;
 
   calculatePerformance() {
     const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null);
@@ -186,10 +202,16 @@ export class DashboardComponent implements OnInit, OnDestroy {
   calculateBotInventory() {
     const inventory: { [key: string]: number } = {};
     const sortedTrades = [...this.trades].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    
     sortedTrades.forEach(trade => {
-      if (trade.side === 'BUY') inventory[trade.symbol] = (inventory[trade.symbol] || 0) + parseFloat(trade.quantity);
-      else if (trade.side === 'SELL') inventory[trade.symbol] = (inventory[trade.symbol] || 0) - parseFloat(trade.quantity);
+      const qty = parseFloat(trade.quantity) || 0;
+      if (trade.side === 'BUY') {
+        inventory[trade.symbol] = (inventory[trade.symbol] || 0) + qty;
+      } else if (trade.side === 'SELL') {
+        inventory[trade.symbol] = (inventory[trade.symbol] || 0) - qty;
+      }
     });
+
     this.botInventory = Object.keys(inventory).map(symbol => ({
       symbol,
       displayQuantity: inventory[symbol].toFixed(4),
@@ -197,8 +219,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     })).filter(item => item.quantity > 0.0001);
   }
 
-  formatPrice(price: any) { return parseFloat(price).toFixed(4); }
-  formatDate(dateStr: string) {
+  formatPrice(price: any): string { 
+    const p = parseFloat(price);
+    return isNaN(p) ? '0.0000' : p.toFixed(4); 
+  }
+
+  formatDate(dateStr: string): string {
     if (!dateStr || dateStr.includes('1970')) return '---';
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? '---' : date.toLocaleString();

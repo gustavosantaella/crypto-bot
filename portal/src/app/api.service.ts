@@ -18,13 +18,6 @@ export class ApiService {
     return this.http.get<any>(url);
   }
 
-  getPriceLogs(skip: number = 0, limit: number = 15, startDate: string = '', endDate: string = ''): Observable<any> {
-    let url = `${this.apiUrl}/status/prices?skip=${skip}&limit=${limit}`;
-    if (startDate) url += `&start_date=${startDate}`;
-    if (endDate) url += `&end_date=${endDate}`;
-    return this.http.get<any>(url);
-  }
-
   getBotStatus(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/status/bot`);
   }

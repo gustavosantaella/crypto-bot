@@ -1,8 +1,10 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { WebsocketService } from '../../websocket.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-history',
@@ -10,45 +12,47 @@ import { ApiService } from '../../api.service';
   imports: [CommonModule, FormsModule],
   templateUrl: './history.component.html'
 })
-export class HistoryComponent implements OnInit {
+export class HistoryComponent implements OnInit, OnDestroy {
   allPriceLogs: any[] = [];
   currentPage: number = 1;
   pageSize: number = 15;
   totalLogs: number = 0;
   startDate: string = '';
   endDate: string = '';
+  private wsSub?: Subscription;
 
   constructor(
     private apiService: ApiService,
+    private wsService: WebsocketService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
-    this.loadPage(1);
+    this.wsSub = this.wsService.getMessages().subscribe(msg => {
+      if (msg.type === 'PRICE_UPDATE') {
+        const data = msg.data;
+        const newLog = {
+          symbol: data.symbol,
+          price: parseFloat(data.price || '0'),
+          rsi: parseFloat(data.rsi || '0'),
+          timestamp: data.timestamp || new Date().toISOString()
+        };
+        this.allPriceLogs.unshift(newLog);
+        if (this.allPriceLogs.length > 200) this.allPriceLogs.pop(); // Mantener un límite razonable en memoria
+        this.totalLogs = this.allPriceLogs.length;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  ngOnDestroy() {
+    this.wsSub?.unsubscribe();
   }
 
   loadPage(page: number) {
     this.currentPage = page;
-    const skip = (page - 1) * this.pageSize;
-    
-    this.apiService.getPriceLogs(skip, this.pageSize, this.startDate, this.endDate).subscribe({
-      next: (data) => {
-        console.log('History Price Logs raw:', data);
-        this.totalLogs = data.total || 0;
-        const logs = data.logs || [];
-        
-        this.allPriceLogs = logs.map((p: any) => ({
-          symbol: p.symbol,
-          price: parseFloat(p.price || '0'),
-          rsi: parseFloat(p.rsi || '0'),
-          timestamp: p.timestamp
-        }));
-        // Note: Backend already returns them sorted by timestamp desc
-        this.cdr.detectChanges();
-      },
-      error: (err) => console.error('Error in HistoryComponent fetch:', err)
-    });
+    // Ya no se requiere carga desde API, la lista se mantiene en memoria
   }
 
   get totalPages() {
