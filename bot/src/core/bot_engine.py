@@ -179,5 +179,7 @@ class BotEngine:
 
             except Exception as e:
                 logging.error(f"Engine error: {e}")
+                print(f"Error en el ciclo del bot: {e}. Reintentando en 20s...")
+                time.sleep(20)
             
             time.sleep(CHECK_INTERVAL)
