@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { WebsocketService } from '../../websocket.service';
 import { interval, Subscription } from 'rxjs';
 import { MetricCard } from '../../components/metric-card';
 import { AssetCard } from '../../components/asset-card';
@@ -30,9 +31,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   filters = { side: '', trade_type: '', status: '', startDate: '', endDate: '' };
   private refreshSub?: Subscription;
+  private wsSub?: Subscription;
 
   constructor(
     private apiService: ApiService,
+    private wsService: WebsocketService,
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {}
@@ -56,11 +59,51 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.fetchData();
-    this.refreshSub = interval(20000).subscribe(() => this.fetchData());
+    // Bajamos el polling ya que tenemos WS
+    this.refreshSub = interval(60000).subscribe(() => this.fetchData());
+    
+    this.wsSub = this.wsService.getMessages().subscribe(msg => {
+      this.handleWsMessage(msg);
+    });
+  }
+
+  handleWsMessage(msg: any) {
+    const { type, data } = msg;
+    
+    if (type === 'PRICE_UPDATE') {
+      const newLog = {
+        symbol: data.symbol,
+        price: parseFloat(data.price),
+        rsi: parseFloat(data.rsi),
+        timestamp: data.timestamp || new Date().toISOString()
+      };
+      this.priceLogs.unshift(newLog);
+      if (this.priceLogs.length > 50) this.priceLogs.pop();
+    } 
+    else if (type === 'STATUS_UPDATE') {
+      this.status = {
+        ...data,
+        updated_at: data.updated_at || new Date().toISOString()
+      };
+    }
+    else if (type === 'NEW_TRADE') {
+      this.loadTrades(1);
+      this.apiService.getBalance().subscribe(data => {
+         const bals = data && data.balances ? data.balances : [];
+         this.balances = bals.map((b: any) => ({
+           asset: b.asset,
+           free: parseFloat(b.free || '0'),
+           locked: parseFloat(b.locked || '0')
+         }));
+      });
+    }
+    
+    this.cdr.detectChanges();
   }
 
   ngOnDestroy() {
     this.refreshSub?.unsubscribe();
+    this.wsSub?.unsubscribe();
   }
 
   fetchData() {

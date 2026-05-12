@@ -4,5 +4,7 @@ pandas
 sqlalchemy
 pymysql
 fastapi
-uvicorn
+uvicorn[standard]
+websockets
+requests
 cryptography

@@ -5,6 +5,7 @@ from src.strategies.rsi_strategy import RSIStrategy
 from src.config.trading_params import SYMBOL, TRADE_PERCENTAGE, CHECK_INTERVAL, TAKE_PROFIT_PCT, STOP_LOSS_PCT
 from src.utils.db import log_trade, log_price, update_status, get_last_status
 from src.utils.telegram_notifier import TelegramNotifier
+from src.utils.ws_notifier import notify_price_update, notify_status_update, notify_new_trade
 
 class BotEngine:
     def __init__(self):
@@ -18,7 +19,16 @@ class BotEngine:
         self._sync_db_status()
 
     def _sync_db_status(self):
+        status_data = {
+            "has_position": self.has_position,
+            "last_buy_price": self.last_buy_price,
+            "target_take_profit": self.target_tp,
+            "target_stop_loss": self.target_sl,
+            "trade_type": self.trade_type,
+            "updated_at": None # Se puede generar en el server
+        }
         update_status(self.has_position, self.last_buy_price, self.target_tp, self.target_sl, self.trade_type)
+        notify_status_update(status_data)
     def _check_notional(self, price, quantity):
         return (price * quantity) >= 10.0 # Mínimo 10 USDT
 
@@ -58,6 +68,7 @@ class BotEngine:
                 
                 # log_price(SYMBOL, price, rsi)
                 logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | ATR: {atr:.4f} | ADX: {adx:.2f} | Signal: {signal}")
+                notify_price_update(SYMBOL, price, rsi)
 
                 if signal == 'BUY': # Open LONG
                     balance_usdt = self.exchange.get_balance('USDT')
@@ -77,6 +88,16 @@ class BotEngine:
                             log_trade(SYMBOL, 'BUY', price, buy_quantity, balance_before=balance_usdt, trade_type="LONG", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "LONG")
                             TelegramNotifier.notify_trade_open(SYMBOL, 'LONG', price, buy_quantity, self.target_tp, self.target_sl)
+                            notify_new_trade({
+                                "symbol": SYMBOL,
+                                "side": "BUY",
+                                "price": price,
+                                "quantity": buy_quantity,
+                                "trade_type": "LONG",
+                                "target_tp": self.target_tp,
+                                "target_sl": self.target_sl,
+                                "timestamp": None
+                            })
 
                 elif signal == 'SELL_SHORT': # Open SHORT
                     balance_usdt = self.exchange.get_balance('USDT')
@@ -96,6 +117,17 @@ class BotEngine:
                             log_trade(SYMBOL, 'SELL', price, sell_quantity, balance_before=balance_usdt, trade_type="SHORT", target_tp=self.target_tp, target_sl=self.target_sl)
                             update_status(True, price, self.target_tp, self.target_sl, "SHORT")
                             TelegramNotifier.notify_trade_open(SYMBOL, 'SHORT', price, sell_quantity, self.target_tp, self.target_sl)
+                            notify_new_trade({
+                                "symbol": SYMBOL,
+                                "side": "SELL",
+                                "price": price,
+                                "quantity": sell_quantity,
+                                "trade_type": "SHORT",
+                                "target_tp": self.target_tp,
+                                "target_sl": self.target_sl,
+                                "timestamp": None
+                            })
+                            self._sync_db_status()
 
                 elif signal == 'SELL': # Close LONG
                     positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
@@ -109,7 +141,16 @@ class BotEngine:
                             self.has_position = False
                             # Cancelar órdenes pendientes (SL/TP) en Binance
                             self.exchange.cancel_all_orders(SYMBOL)
-                            update_status(False, None, None, None, "LONG")
+                            self._sync_db_status()
+                            notify_new_trade({
+                                "symbol": SYMBOL,
+                                "side": "SELL",
+                                "price": price,
+                                "quantity": qty,
+                                "trade_type": "LONG",
+                                "pnl": pnl,
+                                "timestamp": None
+                            })
 
                 elif signal == 'BUY_BACK': # Close SHORT
                     positions = self.exchange.client.futures_position_information(symbol=SYMBOL)
@@ -123,7 +164,16 @@ class BotEngine:
                             self.has_position = False
                             # Cancelar órdenes pendientes (SL/TP) en Binance
                             self.exchange.cancel_all_orders(SYMBOL)
-                            update_status(False, None, None, None, "SHORT")
+                            self._sync_db_status()
+                            notify_new_trade({
+                                "symbol": SYMBOL,
+                                "side": "BUY",
+                                "price": price,
+                                "quantity": qty,
+                                "trade_type": "SHORT",
+                                "pnl": pnl,
+                                "timestamp": None
+                            })
                     else:
                         logging.warning("Señal SELL recibida pero no hay balance de activo.")
 
