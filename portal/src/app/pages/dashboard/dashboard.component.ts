@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -7,6 +7,8 @@ import { WebsocketService } from '../../websocket.service';
 import { interval, Subscription } from 'rxjs';
 import { MetricCard } from '../../components/metric-card';
 import { AssetCard } from '../../components/asset-card';
+
+declare var Chart: any;
 
 interface Trade {
   id: number;
@@ -42,7 +44,7 @@ interface Balance {
   imports: [CommonModule, FormsModule, MetricCard, AssetCard],
   templateUrl: './dashboard.component.html'
 })
-export class DashboardComponent implements OnInit, OnDestroy {
+export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   status: any = { has_position: false, last_buy_price: 0 };
   trades: Trade[] = [];
   priceLogs: PriceLog[] = [];
@@ -59,6 +61,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totalTrades: number = 0;
 
   filters = { side: '', trade_type: '', status: '', startDate: '', endDate: '' };
+  private chart: any;
   private refreshSub?: Subscription;
   private wsSub?: Subscription;
 
@@ -115,6 +118,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  ngAfterViewInit() {
+    this.initChart();
+  }
+
   handleWsMessage(msg: any) {
     const { type, data } = msg;
     
@@ -127,12 +134,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
       };
       this.priceLogs.unshift(newLog);
       if (this.priceLogs.length > 50) this.priceLogs.pop();
+      this.updateChart();
     } 
     else if (type === 'STATUS_UPDATE') {
       this.status = {
         ...data,
         updated_at: data.updated_at || new Date().toISOString()
       };
+      this.updateChart();
     }
     else if (type === 'NEW_TRADE') {
       this.loadTrades(1);
@@ -149,6 +158,110 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  initChart() {
+    const ctx = document.getElementById('marketChart') as HTMLCanvasElement;
+    if (!ctx) return;
+
+    this.chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Market Price',
+            data: [],
+            borderColor: '#00d2ff',
+            backgroundColor: 'rgba(0, 210, 255, 0.1)',
+            borderWidth: 3,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.4,
+            yAxisID: 'y'
+          },
+          {
+            label: 'RSI',
+            data: [],
+            borderColor: '#fbbf24',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.4,
+            yAxisID: 'yRsi'
+          },
+          {
+            label: 'Take Profit',
+            data: [],
+            borderColor: '#10b981',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            hidden: true,
+            yAxisID: 'y'
+          },
+          {
+            label: 'Stop Loss',
+            data: [],
+            borderColor: '#ef4444',
+            borderDash: [5, 5],
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            hidden: true,
+            yAxisID: 'y'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { display: false },
+          y: {
+            position: 'left',
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            ticks: { color: '#9ca3af' }
+          },
+          yRsi: {
+            position: 'right',
+            min: 0,
+            max: 100,
+            grid: { display: false },
+            ticks: { color: '#fbbf24', font: { size: 10 } }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+    this.updateChart();
+  }
+
+  updateChart() {
+    if (!this.chart || this.priceLogs.length === 0) return;
+
+    const displayLogs = [...this.priceLogs].reverse();
+    this.chart.data.labels = displayLogs.map(l => this.formatDate(l.timestamp));
+    this.chart.data.datasets[0].data = displayLogs.map(l => l.price);
+    this.chart.data.datasets[1].data = displayLogs.map(l => l.rsi);
+
+    if (this.status.has_position && this.status.target_take_profit) {
+      const tp = parseFloat(this.status.target_take_profit);
+      const sl = parseFloat(this.status.target_stop_loss);
+      this.chart.data.datasets[2].data = displayLogs.map(() => tp);
+      this.chart.data.datasets[3].data = displayLogs.map(() => sl);
+      this.chart.data.datasets[2].hidden = false;
+      this.chart.data.datasets[3].hidden = false;
+    } else {
+      this.chart.data.datasets[2].hidden = true;
+      this.chart.data.datasets[3].hidden = true;
+    }
+
+    this.chart.update('none');
+    this.cdr.detectChanges();
+  }
+
   ngOnDestroy() {
     this.refreshSub?.unsubscribe();
     this.wsSub?.unsubscribe();
@@ -159,6 +272,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       next: (data: any) => {
         this.status = data || { has_position: false, last_buy_price: 0 };
         this.apiOnline = true;
+        this.updateChart();
         this.cdr.detectChanges();
       },
       error: () => { 
