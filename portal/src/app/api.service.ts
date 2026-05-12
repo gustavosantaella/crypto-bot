@@ -25,4 +25,8 @@ export class ApiService {
   getBalance(): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/balance/`);
   }
+
+  getPriceLogs(skip: number = 0, limit: number = 50): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/price-logs/?skip=${skip}&limit=${limit}`);
+  }
 }
