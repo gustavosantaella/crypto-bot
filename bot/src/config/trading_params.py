@@ -20,6 +20,10 @@ ATR_PERIOD = int(os.getenv("ATR_PERIOD", 14))
 ATR_MULTIPLIER = float(os.getenv("ATR_MULTIPLIER", 2.0))  # SL = Price +/- (ATR * 2)
 TIMEFRAME = os.getenv("TIMEFRAME", "1h")
 
+# Configuración ADX (Fuerza de Tendencia)
+ADX_PERIOD = int(os.getenv("ADX_PERIOD", 14))
+ADX_THRESHOLD = float(os.getenv("ADX_THRESHOLD", 25.0))
+
 # Gestión de Riesgo (Risk Management)
 STOP_LOSS_PCT = float(os.getenv("STOP_LOSS_PCT", 0.03)) # Fallback
 TAKE_PROFIT_PCT = float(os.getenv("TAKE_PROFIT_PCT", 0.05)) # Fallback

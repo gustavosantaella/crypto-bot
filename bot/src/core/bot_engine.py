@@ -53,11 +53,11 @@ class BotEngine:
                 klines = self.exchange.get_klines(SYMBOL, interval=TIMEFRAME)
                 if not price or not klines: continue
 
-                rsi, atr = RSIStrategy.calculate_indicators(klines)
-                signal, new_tp, new_sl = RSIStrategy.get_signal(rsi, atr, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
+                rsi, atr, adx, plus_di, minus_di = RSIStrategy.calculate_indicators(klines)
+                signal, new_tp, new_sl = RSIStrategy.get_signal(rsi, atr, adx, plus_di, minus_di, price, self.has_position, self.target_tp, self.target_sl, self.trade_type)
                 
                 # log_price(SYMBOL, price, rsi)
-                logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | ATR: {atr:.4f} | Signal: {signal}")
+                logging.info(f"[{SYMBOL}] Price: {price} | RSI: {rsi:.2f} | ATR: {atr:.4f} | ADX: {adx:.2f} | Signal: {signal}")
 
                 if signal == 'BUY': # Open LONG
                     balance_usdt = self.exchange.get_balance('USDT')
