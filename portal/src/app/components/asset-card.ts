@@ -20,7 +20,7 @@ import { CommonModule } from '@angular/common';
         </div>
       </div>
       <div *ngIf="locked > 0" style="margin-top: 0.5rem; font-size: 0.65rem; color: #6b7280;">
-        Locked: {{ locked }}
+        Locked: {{ locked | number:'1.2-2' }}
       </div>
     </div>
   `

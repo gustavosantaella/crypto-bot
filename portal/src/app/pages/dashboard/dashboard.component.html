@@ -87,7 +87,7 @@
         <div class="glass-card">
           <h3 class="card-title"><div class="dot secondary"></div> Total Wallet Balance</h3>
           <div class="assets-list">
-            <app-asset-card *ngFor="let bal of balances" [label]="bal.asset" [amount]="bal.free | number:'1.2-8'" [locked]="bal.locked" [iconColor]="bal.asset === 'USDT' ? '#10b981' : (bal.asset === 'BTC' ? '#f59e0b' : 'var(--text-main)')"></app-asset-card>
+            <app-asset-card *ngFor="let bal of balances" [label]="bal.asset" [amount]="bal.free | number:'1.2-2'" [locked]="bal.locked" [iconColor]="bal.asset === 'USDT' ? '#10b981' : (bal.asset === 'BTC' ? '#f59e0b' : 'var(--text-main)')"></app-asset-card>
           </div>
         </div>
       </div>
