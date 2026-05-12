@@ -158,7 +158,14 @@
                 <td style="font-size: 0.7rem; color: var(--text-muted); font-weight: 800;">#{{ trade.id }}</td>
                 <td class="muted">{{ formatDate(trade.timestamp) }}</td>
                 <td class="bold" style="color: #60a5fa;">{{ trade.balance_before ? (trade.balance_before | number:'1.2-2') + ' USDT' : '-' }}</td>
-                <td><span class="badge" style="background: rgba(0, 210, 255, 0.1); color: var(--primary); border: 1px solid rgba(0, 210, 255, 0.2);">{{ trade.trade_type }}</span></td>
+                <td>
+                  <span class="badge" [style.background]="trade.trade_type === 'LONG' ? 'rgba(0, 210, 255, 0.1)' : 'rgba(168, 85, 247, 0.1)'" 
+                                      [style.color]="trade.trade_type === 'LONG' ? 'var(--primary)' : '#a855f7'" 
+                                      [style.border]="trade.trade_type === 'LONG' ? '1px solid rgba(0, 210, 255, 0.2)' : '1px solid rgba(168, 85, 247, 0.2)'">
+                    <span style="font-size: 0.9rem; font-weight: 900;">{{ trade.trade_type === 'LONG' ? '↑' : '↓' }}</span>
+                    <span>{{ trade.trade_type }}</span>
+                  </span>
+                </td>
                 <td>
                   <span class="badge" 
                     [style.background]="trade.side === 'BUY' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'"
