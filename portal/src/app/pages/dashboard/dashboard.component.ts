@@ -69,6 +69,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private router: Router
   ) {}
 
+  get currentPrice(): number {
+    return this.priceLogs[0]?.price || 0;
+  }
+
+  get tpDistance() {
+    if (!this.status.has_position || !this.status.target_take_profit || !this.currentPrice) return null;
+    const isLong = this.status.trade_type === 'LONG';
+    const diff = isLong ? (this.status.target_take_profit - this.currentPrice) : (this.currentPrice - this.status.target_take_profit);
+    const pct = (diff / this.currentPrice) * 100;
+    return { diff, pct };
+  }
+
+  get slDistance() {
+    if (!this.status.has_position || !this.status.target_stop_loss || !this.currentPrice) return null;
+    const isLong = this.status.trade_type === 'LONG';
+    const diff = isLong ? (this.currentPrice - this.status.target_stop_loss) : (this.status.target_stop_loss - this.currentPrice);
+    const pct = (diff / this.currentPrice) * 100;
+    return { diff, pct };
+  }
+
   get filteredTrades(): Trade[] {
     return this.trades.filter(t => {
       const matchSide = !this.filters.side || t.side.toLowerCase().includes(this.filters.side.toLowerCase());

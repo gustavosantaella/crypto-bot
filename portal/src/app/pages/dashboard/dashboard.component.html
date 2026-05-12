@@ -48,9 +48,32 @@
         </div>
 
         <div *ngIf="status.has_position" class="position-info">
+          <div class="info-row" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <span>CURRENT PRICE</span>
+            <span class="val" style="color: #fff; font-size: 1rem; letter-spacing: 1px;">${{ formatPrice(currentPrice) }}</span>
+          </div>
+
           <div class="info-row"><span>ENTRY</span><span class="val primary">${{ formatPrice(status.last_buy_price) }}</span></div>
-          <div class="info-row"><span>TARGET TP</span><span class="val success">${{ formatPrice(status.target_take_profit) }}</span></div>
-          <div class="info-row"><span>STOP LOSS</span><span class="val danger">${{ formatPrice(status.target_stop_loss) }}</span></div>
+          
+          <div class="info-row" style="margin-top: 0.8rem;">
+            <span>TARGET TP</span>
+            <div style="text-align: right;">
+              <span class="val success" style="font-size: 0.9rem;">${{ formatPrice(status.target_take_profit) }}</span>
+              <small *ngIf="tpDistance" style="display: block; font-size: 0.65rem; color: var(--success); font-weight: 600; margin-top: 2px;">
+                {{ tpDistance.diff > 0 ? 'Remains: ' : 'Over: ' }}${{ (tpDistance.diff < 0 ? -tpDistance.diff : tpDistance.diff) | number:'1.2-2' }} ({{ tpDistance.pct | number:'1.2-2' }}%)
+              </small>
+            </div>
+          </div>
+
+          <div class="info-row" style="margin-top: 0.8rem;">
+            <span>STOP LOSS</span>
+            <div style="text-align: right;">
+              <span class="val danger" style="font-size: 0.9rem;">${{ formatPrice(status.target_stop_loss) }}</span>
+              <small *ngIf="slDistance" style="display: block; font-size: 0.65rem; color: var(--danger); font-weight: 600; margin-top: 2px;">
+                {{ slDistance.diff > 0 ? 'Distance: ' : 'Under: ' }}${{ (slDistance.diff < 0 ? -slDistance.diff : slDistance.diff) | number:'1.2-2' }} ({{ slDistance.pct | number:'1.2-2' }}%)
+              </small>
+            </div>
+          </div>
         </div>
 
         <div class="update-time">Last Update: {{ formatDate(status.updated_at) }}</div>
