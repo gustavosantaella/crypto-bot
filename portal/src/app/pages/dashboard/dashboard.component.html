@@ -1,27 +1,30 @@
-<div class="container" style="padding: 2rem; max-width: 1600px; margin: 0 auto;">
+<div class="page-wrapper">
   <!-- Header -->
-  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-    <div style="display: flex; align-items: center; gap: 1.5rem;">
-      <div>
-        <h1 class="gradient-text" style="font-size: 2.2rem; margin: 0; font-weight: 800; letter-spacing: -1px;">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
-        <p style="color: var(--text-muted); margin: 0.25rem 0 0; font-size: 0.9rem;">High-Frequency RSI Strategy • SOL/USDT</p>
-      </div>
-      <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1.25rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; border-color: var(--primary); color: var(--primary);">
-        <span style="font-size: 1.1rem;">📄</span> DOCS
-      </button>
-      <button (click)="goToStats()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1.25rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, var(--primary), #8b5cf6); border: none; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);">
-        <span style="font-size: 1.1rem;">📈</span> ANALYTICS
-      </button>
+  <header class="page-header">
+    <div class="header-brand">
+      <h1 class="gradient-text">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
+      <p>High-Frequency RSI Strategy • SOL/USDT</p>
     </div>
-    <div class="glass-card" style="padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);">
-      <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
-           style="width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 15px currentcolor;"></div>
-      <span style="font-weight: 600; font-size: 0.85rem; letter-spacing: 1px;">{{ apiOnline ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE' }}</span>
+    <div class="header-actions">
+      <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; border-color: var(--primary); color: var(--primary);">
+        <span>📄</span><span class="hide-mobile">DOCS</span>
+      </button>
+      <button (click)="askAI()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, #00d2ff, #3a7bd5); border: none;">
+        <span>✨</span><span>IA</span>
+      </button>
+      <button (click)="goToStats()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, var(--primary), #8b5cf6); border: none;">
+        <span>📈</span><span class="hide-mobile">ANALYTICS</span>
+      </button>
+      <div class="status-pill">
+        <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
+             style="width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentcolor;"></div>
+        <span>{{ apiOnline ? 'SYSTEM ONLINE' : 'OFFLINE' }}</span>
+      </div>
     </div>
   </header>
 
   <!-- Metrics Bar -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+  <div class="metrics-bar">
     <app-metric-card title="Total PnL" [value]="totalPnL.toFixed(2)" [prefix]="totalPnL >= 0 ? '+' : ''" suffix="USDT" [valueColor]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" color="var(--primary)"></app-metric-card>
     <app-metric-card title="Accumulated ROI" [value]="totalROI.toFixed(2)" [prefix]="totalROI >= 0 ? '+' : ''" suffix="%" [valueColor]="totalROI >= 0 ? 'var(--success)' : 'var(--danger)'" color="#10b981"></app-metric-card>
     <app-metric-card title="Win Rate" [value]="winRate.toFixed(1)" suffix="%" color="#8b5cf6" valueColor="#a78bfa"></app-metric-card>
@@ -37,12 +40,14 @@
       <!-- Status Card -->
       <div class="glass-card" style="position: relative; overflow: hidden;">
         <div *ngIf="status.has_position" class="active-badge">ACTIVE</div>
-        <button (click)="askAI()" class="btn-primary" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem; background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); border: none;">
-          <span style="font-size: 1.2rem;">✨</span> <span>Preguntar a la IA</span>
-        </button>
-        <button (click)="goToStats()" class="btn-secondary btn-glow" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem;">
-          <span style="font-size: 1.2rem;">📈</span> <span class="hide-mobile">Analytics</span>
-        </button>
+        <div class="sidebar-btn-row" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+          <button (click)="askAI()" class="btn-primary" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.5rem; font-size: 0.75rem; border: none;">
+            <span>✨</span> <span>Preguntar IA</span>
+          </button>
+          <button (click)="goToStats()" class="btn-secondary" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; font-size: 0.75rem;">
+            <span>📈</span>
+          </button>
+        </div>
         <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">🤖</span> Bot Engine Status
         </h3>
@@ -175,7 +180,7 @@
             VIEW CANCELLED
           </button>
         </div>
-        <div style="overflow-x: auto; min-height: 450px;">
+        <div class="table-wrapper">
           <table class="trade-table">
             <thead>
               <tr>
