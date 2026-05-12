@@ -1,8 +1,13 @@
 #!/bin/bash
 
-# Este script se llama a sí mismo con parámetros para abrir terminales separadas
+# Este script puede recibir parámetros:
+# -b: Inicia el Bot
+# -p: Inicia el Portal
+# -a: Inicia la API
+# Si no recibe nada, inicia los tres.
 
-if [ "$1" == "portal" ]; then
+# Lógica interna para las ventanas hijas
+if [ "$1" == "portal_exec" ]; then
     echo "🖥️ Iniciando Portal (Angular)..."
     cd portal && npm start
     echo "Portal cerrado. Presiona Enter para salir..."
@@ -10,7 +15,7 @@ if [ "$1" == "portal" ]; then
     exit
 fi
 
-if [ "$1" == "api" ]; then
+if [ "$1" == "api_exec" ]; then
     echo "🔌 Iniciando API (Uvicorn)..."
     cd api && source ../.venv/Scripts/activate && python run.py
     echo "API cerrada. Presiona Enter para salir..."
@@ -18,7 +23,7 @@ if [ "$1" == "api" ]; then
     exit
 fi
 
-if [ "$1" == "bot" ]; then
+if [ "$1" == "bot_exec" ]; then
     echo "🤖 Iniciando Bot..."
     cd bot && source ../.venv/Scripts/activate && python run.py
     echo "Bot cerrado. Presiona Enter para salir..."
@@ -26,14 +31,43 @@ if [ "$1" == "bot" ]; then
     exit
 fi
 
-# Si no hay argumentos, lanzar las tres terminales
-echo "🚀 Iniciando servicios de Crypto Bot..."
+# --- Lógica del Lanzador Principal ---
+START_BOT=false
+START_PORTAL=false
+START_API=false
 
-# Obtenemos la ruta absoluta del script para que las nuevas terminales lo encuentren
+if [ $# -eq 0 ]; then
+    # Por defecto, todos
+    START_BOT=true
+    START_PORTAL=true
+    START_API=true
+else
+    # Parsear flags
+    for arg in "$@"; do
+        case $arg in
+            -b) START_BOT=true ;;
+            -p) START_PORTAL=true ;;
+            -a) START_API=true ;;
+        esac
+    done
+fi
+
+echo "🚀 Iniciando servicios seleccionados..."
 SCRIPT_PATH=$(readlink -f "$0")
 
-start bash "$SCRIPT_PATH" portal
-start bash "$SCRIPT_PATH" api
-start bash "$SCRIPT_PATH" bot
+if [ "$START_PORTAL" = true ]; then
+    echo "Lanzando Portal..."
+    start bash "$SCRIPT_PATH" portal_exec
+fi
 
-echo "✅ Todos los servicios han sido lanzados en terminales separadas."
+if [ "$START_API" = true ]; then
+    echo "Lanzando API..."
+    start bash "$SCRIPT_PATH" api_exec
+fi
+
+if [ "$START_BOT" = true ]; then
+    echo "Lanzando Bot..."
+    start bash "$SCRIPT_PATH" bot_exec
+fi
+
+echo "✅ Proceso de inicio completado."
