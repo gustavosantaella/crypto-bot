@@ -126,6 +126,8 @@
                   Price <span class="info-icon">?</span>
                   <div class="tooltip-box"><b>Precio:</b> Valor de ejecución en futuros.</div>
                 </th>
+                <th>TP Target</th>
+                <th>SL Target</th>
                 <th>Qty</th>
                 <th class="has-tooltip">
                   Total <span class="info-icon">?</span>
@@ -143,7 +145,7 @@
                 <th></th>
                 <th><input [(ngModel)]="filters.trade_type" placeholder="Type..."></th>
                 <th><input [(ngModel)]="filters.side" placeholder="Side..."></th>
-                <th></th><th></th><th></th><th></th>
+                <th></th><th></th><th></th><th></th><th></th><th></th>
                 <th><input [(ngModel)]="filters.status" placeholder="Status..."></th>
               </tr>
             </thead>
@@ -162,6 +164,8 @@
                   </span>
                 </td>
                 <td class="bold">${{ formatPrice(trade.price) }}</td>
+                <td class="bold success">${{ trade.target_tp ? formatPrice(trade.target_tp) : '-' }}</td>
+                <td class="bold danger">${{ trade.target_sl ? formatPrice(trade.target_sl) : '-' }}</td>
                 <td>{{ trade.quantity }}</td>
                 <td class="bold" style="color: #fff;">{{ (trade.price * trade.quantity) | number:'1.2-2' }} USDT</td>
                 <td class="bold" [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
