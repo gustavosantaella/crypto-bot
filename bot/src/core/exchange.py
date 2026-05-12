@@ -92,36 +92,35 @@ class ExchangeManager:
             
             rounded_sl = self.round_price(symbol, stop_loss)
             rounded_tp = self.round_price(symbol, take_profit)
-            rounded_qty = self.round_quantity(symbol, quantity)
 
             orders_placed = []
 
-            # Crear Stop Loss
+            # Crear Stop Loss (Modo Position Close para que aparezca en la pestaña TP/SL)
             try:
                 sl_order = self.client.futures_create_order(
                     symbol=symbol,
                     side=exit_side,
                     type='STOP_MARKET',
                     stopPrice=rounded_sl,
-                    quantity=rounded_qty,
-                    reduceOnly=True
+                    closePosition=True,
+                    workingType='MARK_PRICE' # Más seguro contra flash crashes
                 )
-                logging.info(f"SUCCESS: Stop Loss en {rounded_sl}")
+                logging.info(f"SUCCESS: Stop Loss en {rounded_sl} (Position Close)")
                 orders_placed.append(sl_order)
             except Exception as e:
                 logging.error(f"FAIL: Stop Loss ({rounded_sl}): {e}")
 
-            # Crear Take Profit
+            # Crear Take Profit (Modo Position Close)
             try:
                 tp_order = self.client.futures_create_order(
                     symbol=symbol,
                     side=exit_side,
                     type='TAKE_PROFIT_MARKET',
                     stopPrice=rounded_tp,
-                    quantity=rounded_qty,
-                    reduceOnly=True
+                    closePosition=True,
+                    workingType='MARK_PRICE'
                 )
-                logging.info(f"SUCCESS: Take Profit en {rounded_tp}")
+                logging.info(f"SUCCESS: Take Profit en {rounded_tp} (Position Close)")
                 orders_placed.append(tp_order)
             except Exception as e:
                 logging.error(f"FAIL: Take Profit ({rounded_tp}): {e}")
