@@ -47,32 +47,47 @@
           <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">{{ status.has_position ? 'Monitoring Take Profit / Stop Loss' : 'Scanning RSI for Entry Signal' }}</p>
         </div>
 
-        <div *ngIf="status.has_position" class="position-info">
-          <div class="info-row" style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.75rem; margin-bottom: 1rem;">
-            <span>CURRENT PRICE</span>
-            <span class="val" style="color: #fff; font-size: 1rem; letter-spacing: 1px;">${{ formatPrice(currentPrice) }}</span>
-          </div>
-
-          <div class="info-row"><span>ENTRY</span><span class="val primary">${{ formatPrice(status.last_buy_price) }}</span></div>
+        <div *ngIf="status.has_position" class="position-info" style="padding: 0; background: transparent; border: none;">
           
-          <div class="info-row" style="margin-top: 0.8rem;">
-            <span>TARGET TP</span>
-            <div style="text-align: right;">
-              <span class="val success" style="font-size: 0.9rem;">${{ formatPrice(status.target_take_profit) }}</span>
-              <small *ngIf="tpDistance" style="display: block; font-size: 0.65rem; color: var(--success); font-weight: 600; margin-top: 2px;">
-                {{ tpDistance.diff > 0 ? 'Remains: ' : 'Over: ' }}${{ (tpDistance.diff < 0 ? -tpDistance.diff : tpDistance.diff) | number:'1.2-2' }} ({{ tpDistance.pct | number:'1.2-2' }}%)
-              </small>
+          <!-- Current Price Highlight Box -->
+          <div style="background: linear-gradient(135deg, rgba(0, 210, 255, 0.1), rgba(58, 123, 213, 0.1)); border: 1px solid rgba(0, 210, 255, 0.2); border-radius: 1rem; padding: 1.25rem; text-align: center; margin-bottom: 1.5rem; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+            <div style="font-size: 0.65rem; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 0.5rem;">MARKET PRICE</div>
+            <div style="font-size: 2.2rem; font-weight: 900; color: #fff; letter-spacing: -1px; line-height: 1;">
+              <span style="opacity: 0.5; font-size: 1.2rem; font-weight: 400; margin-right: 2px;">$</span>{{ formatPrice(currentPrice) }}
             </div>
           </div>
 
-          <div class="info-row" style="margin-top: 0.8rem;">
-            <span>STOP LOSS</span>
-            <div style="text-align: right;">
-              <span class="val danger" style="font-size: 0.9rem;">${{ formatPrice(status.target_stop_loss) }}</span>
-              <small *ngIf="slDistance" style="display: block; font-size: 0.65rem; color: var(--danger); font-weight: 600; margin-top: 2px;">
-                {{ slDistance.diff > 0 ? 'Distance: ' : 'Under: ' }}${{ (slDistance.diff < 0 ? -slDistance.diff : slDistance.diff) | number:'1.2-2' }} ({{ slDistance.pct | number:'1.2-2' }}%)
-              </small>
+          <div class="info-row" style="margin-bottom: 1rem; padding: 0 0.5rem;">
+            <span>ENTRY PRICE</span>
+            <span class="val primary" style="font-size: 1rem;">${{ formatPrice(status.last_buy_price) }}</span>
+          </div>
+
+          <!-- TP & SL Grid -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <!-- TP Box -->
+            <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 0.6rem; color: var(--success); font-weight: 800; margin-bottom: 0.25rem;">TARGET TP</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--success);">${{ formatPrice(status.target_take_profit) }}</div>
+              <div *ngIf="tpDistance" [style.color]="tpDistance.diff > 0 ? 'var(--text-muted)' : 'var(--success)'" style="font-size: 0.65rem; margin-top: 4px; font-weight: 600;">
+                {{ tpDistance.diff > 0 ? '' : '✓ ' }}{{ tpDistance.pct | number:'1.2-2' }}%
+              </div>
             </div>
+
+            <!-- SL Box -->
+            <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
+              <div style="font-size: 0.6rem; color: var(--danger); font-weight: 800; margin-bottom: 0.25rem;">STOP LOSS</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--danger);">${{ formatPrice(status.target_stop_loss) }}</div>
+              <div *ngIf="slDistance" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;">
+                {{ slDistance.pct | number:'1.2-2' }}%
+              </div>
+            </div>
+          </div>
+
+          <!-- Absolute Distance Info -->
+          <div *ngIf="tpDistance || slDistance" style="margin-top: 1rem; font-size: 0.65rem; color: var(--text-muted); text-align: center; background: rgba(255,255,255,0.02); padding: 0.5rem; border-radius: 6px;">
+            <span *ngIf="tpDistance">To TP: <b>${{ (tpDistance.diff < 0 ? 0 : tpDistance.diff) | number:'1.2-2' }}</b></span>
+            <span *ngIf="tpDistance && slDistance" style="margin: 0 0.5rem; opacity: 0.3;">|</span>
+            <span *ngIf="slDistance">To SL: <b>${{ (slDistance.diff < 0 ? 0 : slDistance.diff) | number:'1.2-2' }}</b></span>
           </div>
         </div>
 
