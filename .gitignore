@@ -1,5 +1,6 @@
 bot/.env
 bot/.venv
+.venv
 
 api/.env
 api/.venv
