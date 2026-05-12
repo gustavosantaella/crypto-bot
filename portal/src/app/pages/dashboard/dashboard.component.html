@@ -9,6 +9,9 @@
       <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1.25rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; border-color: var(--primary); color: var(--primary);">
         <span style="font-size: 1.1rem;">📄</span> DOCS
       </button>
+      <button (click)="goToStats()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1.25rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.5rem; background: linear-gradient(135deg, var(--primary), #8b5cf6); border: none; box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);">
+        <span style="font-size: 1.1rem;">📈</span> ANALYTICS
+      </button>
     </div>
     <div class="glass-card" style="padding: 0.6rem 1.25rem; display: flex; align-items: center; gap: 1rem; border-radius: 100px; border: 1px solid rgba(255,255,255,0.1);">
       <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
@@ -18,8 +21,9 @@
   </header>
 
   <!-- Metrics Bar -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
     <app-metric-card title="Total PnL" [value]="totalPnL.toFixed(2)" [prefix]="totalPnL >= 0 ? '+' : ''" suffix="USDT" [valueColor]="totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" color="var(--primary)"></app-metric-card>
+    <app-metric-card title="Accumulated ROI" [value]="totalROI.toFixed(2)" [prefix]="totalROI >= 0 ? '+' : ''" suffix="%" [valueColor]="totalROI >= 0 ? 'var(--success)' : 'var(--danger)'" color="#10b981"></app-metric-card>
     <app-metric-card title="Win Rate" [value]="winRate.toFixed(1)" suffix="%" color="#8b5cf6" valueColor="#a78bfa"></app-metric-card>
     <app-metric-card title="Operations" [value]="trades.length" color="#3b82f6" valueColor="#60a5fa"></app-metric-card>
     <app-metric-card title="Current RSI" [value]="priceLogs.length > 0 ? (priceLogs[0].rsi | number:'1.1-1') : '---'" color="#f59e0b" valueColor="#fbbf24"></app-metric-card>
@@ -170,6 +174,9 @@
                 <td class="bold" style="color: #fff;">{{ (trade.price * trade.quantity) | number:'1.2-2' }} USDT</td>
                 <td class="bold" [style.color]="trade.pnl > 0 ? 'var(--success)' : (trade.pnl < 0 ? 'var(--danger)' : 'inherit')">
                   {{ trade.pnl ? (trade.pnl > 0 ? '+' : '') + formatPrice(trade.pnl) + ' USDT' : '-' }}
+                  <small *ngIf="trade.pnl" style="display: block; font-size: 0.6rem; opacity: 0.8;">
+                    ({{ (trade.pnl / (trade.price * trade.quantity) * 100) | number:'1.2-2' }}%)
+                  </small>
                 </td>
                 <td><span [class]="trade.message ? 'text-danger' : 'text-success'">{{ trade.message || 'SUCCESS' }}</span></td>
               </tr>

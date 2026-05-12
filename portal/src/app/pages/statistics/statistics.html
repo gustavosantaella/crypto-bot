@@ -1,0 +1,81 @@
+<div class="container" style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+  <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem;">
+    <div>
+      <h1 class="gradient-text" style="font-size: 2.5rem; margin: 0; font-weight: 800; letter-spacing: -1px;">Trading <span style="font-weight: 300; opacity: 0.8;">Performance</span></h1>
+      <p style="color: var(--text-muted); margin: 0.5rem 0 0; font-size: 1rem;">Detailed breakdown of strategy efficiency and profit distribution.</p>
+    </div>
+    <button (click)="goBack()" class="btn-secondary" style="border-radius: 100px; padding: 0.6rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-weight: 700;">
+      <span>⬅️</span> VOLVER
+    </button>
+  </header>
+
+  <!-- Summary Cards -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem;">
+    <app-metric-card title="Net Profit" [value]="stats.totalPnL.toFixed(2)" [prefix]="stats.totalPnL >= 0 ? '+' : ''" suffix="USDT" [valueColor]="stats.totalPnL >= 0 ? 'var(--success)' : 'var(--danger)'" color="var(--primary)"></app-metric-card>
+    <app-metric-card title="Success Rate" [value]="stats.winRate.toFixed(1)" suffix="%" color="#8b5cf6" valueColor="#a78bfa"></app-metric-card>
+    <app-metric-card title="Total Volume" [value]="stats.totalVolume.toFixed(2)" suffix="USDT" color="#3b82f6" valueColor="#60a5fa"></app-metric-card>
+    <app-metric-card title="Est. Fees" [value]="stats.totalFees.toFixed(2)" suffix="USDT" color="var(--danger)" valueColor="#f87171"></app-metric-card>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 2rem;">
+    
+    <!-- Profit Breakdown -->
+    <div class="glass-card" style="padding: 2rem;">
+      <h3 style="margin: 0 0 1.5rem; font-size: 1.2rem; display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted);">
+        <span style="font-size: 1.5rem;">⚖️</span> Strategy Breakdown
+      </h3>
+      <div style="display: grid; gap: 1.5rem;">
+        <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <span style="font-weight: 700; color: var(--primary);">LONG POSITIONS</span>
+            <span [style.color]="stats.longPnL >= 0 ? 'var(--success)' : 'var(--danger)'" style="font-weight: 900;">{{ stats.longPnL >= 0 ? '+' : '' }}{{ stats.longPnL.toFixed(2) }} USDT</span>
+          </div>
+          <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+            <div [style.width]="(Math.abs(stats.longPnL) / (Math.abs(stats.longPnL) + Math.abs(stats.shortPnL) + 0.1) * 100) + '%'" style="height: 100%; background: var(--primary);"></div>
+          </div>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.03); padding: 1.25rem; border-radius: 12px; border: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 0.75rem;">
+            <span style="font-weight: 700; color: #f59e0b;">SHORT POSITIONS</span>
+            <span [style.color]="stats.shortPnL >= 0 ? 'var(--success)' : 'var(--danger)'" style="font-weight: 900;">{{ stats.shortPnL >= 0 ? '+' : '' }}{{ stats.shortPnL.toFixed(2) }} USDT</span>
+          </div>
+          <div style="height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+            <div [style.width]="(Math.abs(stats.shortPnL) / (Math.abs(stats.longPnL) + Math.abs(stats.shortPnL) + 0.1) * 100) + '%'" style="height: 100%; background: #f59e0b;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trade Quality -->
+    <div class="glass-card" style="padding: 2rem;">
+      <h3 style="margin: 0 0 1.5rem; font-size: 1.2rem; display: flex; align-items: center; gap: 0.75rem; color: var(--text-muted);">
+        <span style="font-size: 1.5rem;">🏆</span> Trade Quality Metrics
+      </h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div style="background: rgba(16, 185, 129, 0.05); padding: 1rem; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.1);">
+          <p style="font-size: 0.65rem; color: var(--success); font-weight: 800; margin: 0 0 0.5rem; text-transform: uppercase;">Best Trade</p>
+          <p style="font-size: 1.2rem; font-weight: 900; color: var(--success); margin: 0;">+{{ stats.bestTrade.toFixed(2) }} USDT</p>
+        </div>
+        <div style="background: rgba(239, 68, 68, 0.05); padding: 1rem; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.1);">
+          <p style="font-size: 0.65rem; color: var(--danger); font-weight: 800; margin: 0 0 0.5rem; text-transform: uppercase;">Worst Trade</p>
+          <p style="font-size: 1.2rem; font-weight: 900; color: var(--danger); margin: 0;">{{ stats.worstTrade.toFixed(2) }} USDT</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 10px; border: 1px solid var(--border);">
+          <p style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; margin: 0 0 0.5rem; text-transform: uppercase;">Avg. Win</p>
+          <p style="font-size: 1.2rem; font-weight: 900; color: var(--success); margin: 0;">+{{ stats.avgWin.toFixed(2) }} USDT</p>
+        </div>
+        <div style="background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 10px; border: 1px solid var(--border);">
+          <p style="font-size: 0.65rem; color: var(--text-muted); font-weight: 800; margin: 0 0 0.5rem; text-transform: uppercase;">Avg. Loss</p>
+          <p style="font-size: 1.2rem; font-weight: 900; color: var(--danger); margin: 0;">{{ stats.avgLoss.toFixed(2) }} USDT</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Disclaimer -->
+  <div style="margin-top: 3rem; text-align: center; opacity: 0.5;">
+    <p style="font-size: 0.75rem;">Statistics based on the last {{ stats.totalTrades }} closed operations. Past performance does not guarantee future results.</p>
+  </div>
+</div>

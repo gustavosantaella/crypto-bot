@@ -50,6 +50,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.router.navigate(['/history/rsi']);
   }
 
+  goToStats() {
+    this.router.navigate(['/statistics']);
+  }
+
   ngOnInit() {
     this.fetchData();
     this.refreshSub = interval(20000).subscribe(() => this.fetchData());
@@ -119,9 +123,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return Math.ceil(this.totalTrades / this.tradesPageSize);
   }
 
+  totalROI: number = 0;
+
   calculatePerformance() {
     const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null);
     this.totalPnL = sellTrades.reduce((acc, curr) => acc + (parseFloat(curr.pnl) || 0), 0);
+    
+    const totalInvestment = sellTrades.reduce((acc, curr) => acc + (parseFloat(curr.price) * parseFloat(curr.quantity)), 0);
+    this.totalROI = totalInvestment > 0 ? (this.totalPnL / totalInvestment) * 100 : 0;
+
     if (sellTrades.length > 0) {
       const wins = sellTrades.filter(t => (parseFloat(t.pnl) || 0) > 0).length;
       this.winRate = (wins / sellTrades.length) * 100;
