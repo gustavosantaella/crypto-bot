@@ -29,4 +29,8 @@ export class ApiService {
   getPriceLogs(skip: number = 0, limit: number = 50): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/price-logs/?skip=${skip}&limit=${limit}`);
   }
+
+  analyzeWithAI(data: any): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/ai/analyze`, data);
+  }
 }

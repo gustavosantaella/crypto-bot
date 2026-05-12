@@ -7,6 +7,7 @@ import { WebsocketService } from '../../websocket.service';
 import { interval, Subscription } from 'rxjs';
 import { MetricCard } from '../../components/metric-card';
 import { AssetCard } from '../../components/asset-card';
+import { AiModalComponent } from '../../components/ai-modal';
 
 declare var Chart: any;
 
@@ -41,7 +42,7 @@ interface Balance {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, MetricCard, AssetCard],
+  imports: [CommonModule, FormsModule, MetricCard, AssetCard, AiModalComponent],
   templateUrl: './dashboard.component.html'
 })
 export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
@@ -55,6 +56,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   apiOnline: boolean = false;
   botInventory: any[] = [];
   showDocs: boolean = false;
+  
+  // AI State
+  showAiModal: boolean = false;
+  aiLoading: boolean = false;
+  aiAnalysis: string = '';
+  aiError: string = '';
   
   tradesPage: number = 1;
   tradesPageSize: number = 10;
@@ -71,6 +78,40 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private cdr: ChangeDetectorRef,
     private router: Router
   ) {}
+
+  askAI() {
+    if (!this.status || !this.priceLogs[0]) return;
+
+    this.showAiModal = true;
+    this.aiLoading = true;
+    this.aiError = '';
+    this.aiAnalysis = '';
+
+    const aiRequest = {
+      symbol: this.status.symbol || 'SOLUSDT',
+      price: this.priceLogs[0].price,
+      rsi: this.priceLogs[0].rsi,
+      tp: this.status.target_take_profit || 0,
+      sl: this.status.target_stop_loss || 0,
+      trade_type: this.status.trade_type || 'NONE',
+      timeframe: '1h',
+      leverage: this.status.leverage || 5,
+      atr_multiplier: 2.0
+    };
+
+    this.apiService.analyzeWithAI(aiRequest).subscribe({
+      next: (res) => {
+        this.aiAnalysis = res.analysis;
+        this.aiLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        this.aiError = err.error?.detail || 'Error al conectar con la IA de DeepSeek.';
+        this.aiLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
 
   get currentPrice(): number {
     return this.priceLogs[0]?.price || 0;

@@ -37,6 +37,12 @@
       <!-- Status Card -->
       <div class="glass-card" style="position: relative; overflow: hidden;">
         <div *ngIf="status.has_position" class="active-badge">ACTIVE</div>
+        <button (click)="askAI()" class="btn-primary" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem; background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%); border: none;">
+          <span style="font-size: 1.2rem;">✨</span> <span>Preguntar a la IA</span>
+        </button>
+        <button (click)="goToStats()" class="btn-secondary btn-glow" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1.25rem;">
+          <span style="font-size: 1.2rem;">📈</span> <span class="hide-mobile">Analytics</span>
+        </button>
         <h3 style="color: var(--text-muted); margin: 0 0 1.5rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
           <span style="font-size: 1.2rem;">🤖</span> Bot Engine Status
         </h3>
@@ -318,4 +324,13 @@
       </div>
     </div>
   </div>
+
+  <!-- AI Modal -->
+  <app-ai-modal 
+    *ngIf="showAiModal" 
+    [loading]="aiLoading" 
+    [analysis]="aiAnalysis" 
+    [error]="aiError"
+    (close)="showAiModal = false">
+  </app-ai-modal>
 </div>
