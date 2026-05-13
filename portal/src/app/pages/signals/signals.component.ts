@@ -95,6 +95,23 @@ declare var Chart: any;
     </div>
   </div>
 
+  <!-- IA Prediction Card -->
+  <div class="glass-card" style="margin-top:1rem;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <h3 style="color:var(--text-muted);margin:0 0 0.25rem;font-size:.9rem;text-transform:uppercase;letter-spacing:1px;">IA Predictor Local (KNN)</h3>
+      <p style="color:var(--text-muted);font-size:.7rem;margin:0;">Entrena con el 50% de los datos y predice con el resto.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div *ngIf="aiPrediction" style="text-align:right;">
+        <div style="font-size:1.2rem;font-weight:900;color:#fff;">{{ aiPrediction }}</div>
+        <div style="font-size:.6rem;color:var(--text-muted);">Precisión: {{ aiAccuracy | percent:'1.1-1' }}</div>
+      </div>
+      <button (click)="consultarIA()" class="btn-primary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;" [disabled]="aiLoading">
+        {{ aiLoading ? 'Procesando...' : 'Consultar IA' }}
+      </button>
+    </div>
+  </div>
+
   <!-- RSI + Price Chart -->
   <div class="glass-card" style="margin-top:1.5rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
@@ -125,6 +142,9 @@ declare var Chart: any;
 export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   logs: any[]  = [];
   live: any    = null;
+  aiPrediction: string = '';
+  aiAccuracy: number = 0;
+  aiLoading: boolean = false;
 
   private signalChart: any;
   private adxChart: any;
@@ -150,6 +170,23 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.live = this.logs[this.logs.length - 1] || null;
         this.cdr.detectChanges();
         this.initCharts();
+      }
+    });
+  }
+
+  consultarIA() {
+    this.aiLoading = true;
+    this.api.getLocalAiPrediction().subscribe({
+      next: (res: any) => {
+        this.aiPrediction = res.prediction;
+        this.aiAccuracy = res.model_accuracy;
+        this.aiLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error(err);
+        this.aiLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
