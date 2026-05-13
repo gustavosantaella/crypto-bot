@@ -147,9 +147,11 @@ class RSIStrategy:
         is_uptrend_di     = plus_di > minus_di          # DI+ > DI- = alcista
         is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
 
-        # Filtro de tendencia macro: el precio está en contexto alcista global
-        # Se permite un pequeño margen (0.5%) por si la EMA está muy cerca
-        price_above_ema_slow = current_price > (ema_slow * 0.995)
+        # Filtro de tendencia macro ESTRICTO: el precio debe estar claramente sobre la EMA200
+        # Antes: se permitía hasta 0.5% BAJO la EMA (demasiado permisivo - causó el trade perdido)
+        # Ahora: precio debe estar al menos 0.3% SOBRE la EMA para confirmar contexto alcista
+        # Esto evita entrar cuando el precio está en zona de resistencia (justo en la EMA200)
+        price_above_ema_slow = current_price > (ema_slow * 1.003)
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev
