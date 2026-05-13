@@ -92,23 +92,41 @@
               <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">{{ dcaCount }} / {{ maxDca }}</span>
             </div>
             <!-- Tabla con detalle de cada entrada -->
-            <div *ngIf="dcaEntries.length > 0" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.6rem; overflow: hidden;">
+            <div *ngIf="status.has_position" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.6rem; overflow: hidden;">
               <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
                 <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">#</span>
                 <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">ENTRY</span>
                 <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">QTY</span>
                 <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">uPnL</span>
               </div>
-              <div *ngFor="let entry of dcaEntries; let i = index"
-                   style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
-                <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 700;">{{ i + 1 }}</span>
-                <span style="font-size: 0.72rem; font-weight: 700; text-align: right; color: #fff;">${{ entry.price | number:'1.2-2' }}</span>
-                <span style="font-size: 0.68rem; text-align: right; color: var(--text-muted);">{{ entry.quantity | number:'1.4-4' }}</span>
-                <span style="font-size: 0.72rem; font-weight: 700; text-align: right;"
-                      [style.color]="(currentPrice - entry.price) * entry.quantity >= 0 ? 'var(--success)' : 'var(--danger)'">
-                  {{ (currentPrice - entry.price) * entry.quantity >= 0 ? '+' : '' }}{{ ((currentPrice - entry.price) * entry.quantity) | number:'1.2-2' }}
-                </span>
-              </div>
+              
+              <!-- Si hay entradas en el array -->
+              <ng-container *ngIf="dcaEntries.length > 0">
+                <div *ngFor="let entry of dcaEntries; let i = index"
+                     style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                  <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 700;">{{ i + 1 }}</span>
+                  <span style="font-size: 0.72rem; font-weight: 700; text-align: right; color: #fff;">${{ entry.price | number:'1.2-2' }}</span>
+                  <span style="font-size: 0.68rem; text-align: right; color: var(--text-muted);">{{ entry.quantity | number:'1.4-4' }}</span>
+                  <span style="font-size: 0.72rem; font-weight: 700; text-align: right;"
+                        [style.color]="(currentPrice - entry.price) * entry.quantity >= 0 ? 'var(--success)' : 'var(--danger)'">
+                    {{ (currentPrice - entry.price) * entry.quantity >= 0 ? '+' : '' }}{{ ((currentPrice - entry.price) * entry.quantity) | number:'1.2-2' }}
+                  </span>
+                </div>
+              </ng-container>
+
+              <!-- Si NO hay entradas en el array pero SI hay posicion (Entrada Inicial) -->
+              <ng-container *ngIf="dcaEntries.length === 0">
+                <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                  <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 700;">1</span>
+                  <span style="font-size: 0.72rem; font-weight: 700; text-align: right; color: #fff;">${{ status.last_buy_price | number:'1.2-2' }}</span>
+                  <span style="font-size: 0.68rem; text-align: right; color: var(--text-muted);">--</span>
+                  <span style="font-size: 0.72rem; font-weight: 700; text-align: right;"
+                        [style.color]="(currentPrice - status.last_buy_price) >= 0 ? 'var(--success)' : 'var(--danger)'">
+                    {{ (currentPrice - status.last_buy_price) >= 0 ? '+' : '' }}--
+                  </span>
+                </div>
+              </ng-container>
+
               <!-- Fila total -->
               <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; background: rgba(0,210,255,0.04); border-top: 1px solid rgba(0,210,255,0.1);">
                 <span style="font-size: 0.6rem; color: var(--primary); font-weight: 800; grid-column: 1/3;">AVG {{ formatLevel(status.last_buy_price) !== '---' ? '$' + formatLevel(status.last_buy_price) : '---' }}</span>
@@ -120,9 +138,9 @@
               </div>
             </div>
             <!-- Sin entradas activas -->
-            <div *ngIf="dcaEntries.length === 0"
+            <div *ngIf="!status.has_position"
                  style="text-align: center; font-size: 0.65rem; color: var(--text-muted); padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.6rem;">
-              Sin entradas DCA activas
+              Sin posición activa
             </div>
           </div>
 

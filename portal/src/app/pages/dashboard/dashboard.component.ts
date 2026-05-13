@@ -142,16 +142,23 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return (this.currentPrice - avg) * this.dcaCount;
   }
 
-  // Porcentaje de progreso hacia el TP desde el precio de entrada
+  // Porcentaje de progreso hacia el TP (0% = SL, 100% = TP)
   get tpProgress(): number {
-    if (!this.status.has_position || !this.status.last_buy_price || !this.status.target_take_profit || !this.currentPrice) return 0;
-    const avg = parseFloat(this.status.last_buy_price);
+    if (!this.status.has_position || !this.status.target_take_profit || !this.currentPrice) return 0;
+    const avg = parseFloat(this.status.last_buy_price || 0);
     const tp = parseFloat(this.status.target_take_profit);
     const sl = parseFloat(this.status.target_stop_loss || avg);
     const totalRange = Math.abs(tp - sl);
     if (totalRange === 0) return 0;
-    const progress = Math.abs(this.currentPrice - avg);
-    return Math.min(100, Math.max(0, (progress / totalRange) * 100));
+    
+    const isLong = this.status.trade_type === 'LONG';
+    let progress = 0;
+    if (isLong) {
+      progress = ((this.currentPrice - sl) / totalRange) * 100;
+    } else {
+      progress = ((sl - this.currentPrice) / totalRange) * 100;
+    }
+    return Math.min(100, Math.max(0, progress));
   }
 
   // Etiqueta de RSI con estado
@@ -180,9 +187,13 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.currentPrice > this.liveEma200 ? 'var(--success)' : 'var(--danger)';
   }
 
-  // Numero de entradas DCA activas
+  // Numero de entradas DCA activas (retorna al menos 1 si hay posicion)
   get dcaCount(): number {
-    return parseInt(this.status.dca_count || '0');
+    const count = parseInt(this.status.dca_count || '0');
+    if (this.status.has_position) {
+      return count + 1;
+    }
+    return count;
   }
 
   // Maximo de entradas (enviado por el bot)
