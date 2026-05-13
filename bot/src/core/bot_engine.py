@@ -31,7 +31,11 @@ class BotEngine:
         self.dca_entries = []
         self.avg_entry_price = None    # Precio promedio ponderado de todas las entradas
 
-        # Recuperar estado previo si el bot se reinició con posición abierta
+        # Cooldown anti-spam: si una orden falla, bloquear nuevos intentos por N segundos
+        # Evita que el bot intente comprar cada 5 segundos en loop infinito
+        self._buy_blocked_until: float = 0.0  # timestamp unix; 0 = sin bloqueo
+
+        # Recuperar estado previo si el bot se reinicio con posicion abierta
         self._recover_state()
         self._sync_db_status()
 
@@ -130,8 +134,31 @@ class BotEngine:
         self.breakeven_activated = False
 
     def _check_notional(self, price, quantity):
-        """Verifica que la orden supere el mínimo de 10 USDT de Binance Futures."""
+        """Verifica que la orden supere el minimo de 10 USDT de Binance Futures."""
         return (price * quantity) >= 10.0
+
+    def _adjust_to_min_notional(self, price, quantity, balance_usdt):
+        """
+        Si la cantidad calculada no alcanza el minimo notional (10 USDT),
+        intenta ajustarla al minimo siempre que el balance lo permita.
+        Retorna la cantidad ajustada, o None si no hay balance suficiente.
+        """
+        MIN_NOTIONAL = 10.0
+        if self._check_notional(price, quantity):
+            return quantity  # Ya cumple, no ajustar
+
+        # Cantidad minima para cumplir notional (redondeada a 3 decimales)
+        min_qty = round((MIN_NOTIONAL / price) + 0.001, 3)
+        margin_needed = (min_qty * price) / LEVERAGE
+
+        if balance_usdt >= margin_needed:
+            logging.info(
+                f"[NOTIONAL] Cantidad ajustada: {quantity:.4f} -> {min_qty:.4f} SOL "
+                f"(notional minimo: {min_qty*price:.2f} USDT)"
+            )
+            return min_qty
+
+        return None  # No hay balance suficiente ni para el minimo
 
     def _calculate_avg_price(self):
         """
@@ -226,8 +253,15 @@ class BotEngine:
         balance_usdt = self.exchange.get_balance('USDT')
         quantity = (balance_usdt * DCA_ENTRY_SIZE_PCT * LEVERAGE) / price
 
-        if not self._check_notional(price, quantity):
-            logging.warning(f"[DCA #{entry_num}] Notional insuficiente. Balance: {balance_usdt:.2f} USDT")
+        # Auto-ajustar al minimo notional si el balance lo permite
+        quantity = self._adjust_to_min_notional(price, quantity, balance_usdt)
+        if quantity is None:
+            logging.warning(
+                f"[DCA #{entry_num}] Balance insuficiente para minimo notional. "
+                f"Balance: {balance_usdt:.2f} USDT | Precio: {price:.4f}"
+            )
+            # Cooldown de 5 minutos para no spamear cada 5 segundos
+            self._buy_blocked_until = time.time() + 300
             return False
 
         if self.exchange.execute_market_order(SYMBOL, 'BUY', quantity):
@@ -438,13 +472,17 @@ class BotEngine:
                 # ── 6. Ejecutar señal ──────────────────────────────────────────
 
                 if signal == 'BUY':
-                    # Primera entrada LONG
-                    logging.info(
-                        f"[BUY] Primera entrada LONG | "
-                        f"RSI: {rsi:.1f} | Precio: {price:.4f} | EMA200: {ind['ema_slow']:.2f} | "
-                        f"Vol: {ind['volume_ratio']:.2f}x"
-                    )
-                    self._open_dca_entry(price, atr)
+                    # Primera entrada LONG — verificar cooldown anti-spam
+                    if time.time() < self._buy_blocked_until:
+                        wait_s = int(self._buy_blocked_until - time.time())
+                        logging.info(f"[BUY] Bloqueado por cooldown. Reintento en {wait_s}s")
+                    else:
+                        logging.info(
+                            f"[BUY] Primera entrada LONG | "
+                            f"RSI: {rsi:.1f} | Precio: {price:.4f} | EMA200: {ind['ema_slow']:.2f} | "
+                            f"Vol: {ind['volume_ratio']:.2f}x"
+                        )
+                        self._open_dca_entry(price, atr)
 
                 elif signal == 'BUY_DCA' and DCA_ENABLED:
                     # Entrada DCA adicional — validar distancia minima de precio
