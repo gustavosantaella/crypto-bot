@@ -99,16 +99,21 @@ class ExchangeManager:
                 return round(price, len(precision))
         return price
 
-    def set_sl_tp(self, symbol, side, stop_loss, take_profit, quantity):
-        try:
-            exit_side = 'SELL' if side == 'BUY' else 'BUY'
-            
-            rounded_sl = self.round_price(symbol, stop_loss)
-            rounded_tp = self.round_price(symbol, take_profit)
+    def set_sl_tp(self, symbol, side, stop_loss, take_profit, quantity, max_retries=3):
+        """
+        Coloca órdenes SL y TP en Binance con reintentos.
+        El error -4130 ocurre cuando Binance no ha procesado aún la cancelación
+        de las órdenes anteriores. Se reintenta hasta max_retries veces con delay.
+        """
+        exit_side = 'SELL' if side == 'BUY' else 'BUY'
+        rounded_sl = self.round_price(symbol, stop_loss)
+        rounded_tp = self.round_price(symbol, take_profit)
+        orders_placed = []
 
+        for attempt in range(1, max_retries + 1):
             orders_placed = []
 
-            # Crear Stop Loss (Modo Position Close para que aparezca en la pestaña TP/SL)
+            # Crear Stop Loss
             try:
                 sl_order = self.client.futures_create_order(
                     symbol=symbol,
@@ -116,14 +121,17 @@ class ExchangeManager:
                     type='STOP_MARKET',
                     stopPrice=rounded_sl,
                     closePosition=True,
-                    workingType='MARK_PRICE' # Más seguro contra flash crashes
+                    workingType='MARK_PRICE'
                 )
-                logging.info(f"SUCCESS: Stop Loss en {rounded_sl} (Position Close)")
+                logging.info(f"SUCCESS: Stop Loss en {rounded_sl} (intento {attempt})")
                 orders_placed.append(sl_order)
             except Exception as e:
-                logging.error(f"FAIL: Stop Loss ({rounded_sl}): {e}")
+                logging.error(f"FAIL: Stop Loss ({rounded_sl}) intento {attempt}: {e}")
+                if attempt < max_retries:
+                    time.sleep(1.5)
+                    continue
 
-            # Crear Take Profit (Modo Position Close)
+            # Crear Take Profit
             try:
                 tp_order = self.client.futures_create_order(
                     symbol=symbol,
@@ -133,20 +141,32 @@ class ExchangeManager:
                     closePosition=True,
                     workingType='MARK_PRICE'
                 )
-                logging.info(f"SUCCESS: Take Profit en {rounded_tp} (Position Close)")
+                logging.info(f"SUCCESS: Take Profit en {rounded_tp} (intento {attempt})")
                 orders_placed.append(tp_order)
             except Exception as e:
-                logging.error(f"FAIL: Take Profit ({rounded_tp}): {e}")
-            
-            return orders_placed
-        except Exception as e:
-            logging.error(f"Error general en set_sl_tp: {e}")
-            return []
+                logging.error(f"FAIL: Take Profit ({rounded_tp}) intento {attempt}: {e}")
+                if attempt < max_retries:
+                    time.sleep(1.5)
+                    continue
 
-    def cancel_all_orders(self, symbol):
+            # Si ambas órdenes se colocaron, salir del loop
+            if len(orders_placed) == 2:
+                break
+
+            time.sleep(1.5)
+
+        return orders_placed
+
+    def cancel_all_orders(self, symbol, wait_ms=1500):
+        """
+        Cancela todas las órdenes abiertas y espera wait_ms milisegundos
+        para que Binance procese la cancelación antes de colocar nuevas órdenes.
+        Esto previene el error -4130 (orden SL/TP existente conflictiva).
+        """
         try:
             self.client.futures_cancel_all_open_orders(symbol=symbol)
             logging.info(f"Todas las órdenes pendientes de {symbol} han sido canceladas.")
+            time.sleep(wait_ms / 1000)  # Esperar a que Binance procese la cancelación
         except Exception as e:
             logging.error(f"Error cancelando órdenes: {e}")
 
