@@ -8,7 +8,7 @@ from src.config.trading_params import (
     ATR_SL_MULTIPLIER, ATR_TP_MULTIPLIER,
     USE_TRAILING_STOP, TRAILING_TRIGGER_ATR,
 )
-from src.utils.db import log_trade, update_status, get_last_status
+from src.utils.db import log_trade, log_price, update_status, get_last_status, init_db
 from src.utils.telegram_notifier import TelegramNotifier
 from src.utils.ws_notifier import notify_price_update, notify_status_update, notify_new_trade
 
@@ -354,6 +354,9 @@ class BotEngine:
     # Ciclo principal del bot
     # ─────────────────────────────────────────────────────────────────────────
     def start(self):
+        # Migrar DB al iniciar (agrega columnas nuevas si faltan)
+        init_db()
+
         logging.info("==========================================================")
         logging.info("  Bot FUTUROS - Estrategia DCA Conservadora")
         logging.info(f"  DCA: {'Activo' if DCA_ENABLED else 'Inactivo'} | Max entradas: {MAX_DCA_ORDERS}")
@@ -419,7 +422,10 @@ class BotEngine:
                     max_dca_orders=MAX_DCA_ORDERS if DCA_ENABLED else 1
                 )
 
-                # -- 5. Log del ciclo --
+                # -- 5. Persistir precio + indicadores en DB cada ciclo --
+                log_price(SYMBOL, price, ind)
+
+                # -- 6. Log del ciclo --
                 logging.info(
                     f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} ({ind['rsi_prev']:.1f}) | "
                     f"ADX: {adx:.1f} | EMA200: {ind['ema_slow']:.2f} | "

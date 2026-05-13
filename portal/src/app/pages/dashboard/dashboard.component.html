@@ -3,7 +3,7 @@
   <header class="page-header">
     <div class="header-brand">
       <h1 class="gradient-text">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
-      <p>High-Frequency RSI Strategy • SOL/USDT</p>
+      <p>DCA Conservador — SOL/USDT Futures • 3x Leverage</p>
     </div>
     <div class="header-actions">
       <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; border-color: var(--primary); color: var(--primary);">
@@ -12,11 +12,17 @@
       <button (click)="askAI()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, #00d2ff, #3a7bd5); border: none;">
         <span>✨</span><span>IA</span>
       </button>
+      <button (click)="goToSignals()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, #f59e0b, #ef4444); border: none;">
+        <span>📡</span><span class="hide-mobile">SIGNALS</span>
+      </button>
+      <button (click)="goToPerformance()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, #10b981, #3b82f6); border: none;">
+        <span>📈</span><span class="hide-mobile">PERFORMANCE</span>
+      </button>
       <button (click)="goToStats()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, var(--primary), #8b5cf6); border: none;">
-        <span>📈</span><span class="hide-mobile">ANALYTICS</span>
+        <span>🔬</span><span class="hide-mobile">ANALYTICS</span>
       </button>
       <div class="status-pill">
-        <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'" 
+        <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'"
              style="width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentcolor;"></div>
         <span>{{ apiOnline ? 'SYSTEM ONLINE' : 'OFFLINE' }}</span>
       </div>

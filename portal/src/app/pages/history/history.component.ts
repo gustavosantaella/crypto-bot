@@ -58,8 +58,9 @@ export class HistoryComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   loadInitialData() {
-    this.apiService.getPriceLogs(0, 100).subscribe(logs => {
-      this.allPriceLogs = logs.map(l => ({
+    this.apiService.getPriceLogs(0, 100).subscribe((res: any) => {
+      const rawLogs: any[] = res?.logs || res || [];
+      this.allPriceLogs = rawLogs.map((l: any) => ({
         ...l,
         price: parseFloat(l.price),
         rsi: parseFloat(l.rsi)

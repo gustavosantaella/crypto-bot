@@ -64,14 +64,14 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   liveVolumeRatio: number = 0;
 
   // Entradas DCA individuales: [{price: number, quantity: number}]
-  dcaEntries: {price: number, quantity: number}[] = [];
+  dcaEntries: { price: number, quantity: number }[] = [];
 
   // AI State
   showAiModal: boolean = false;
   aiLoading: boolean = false;
   aiAnalysis: string = '';
   aiError: string = '';
-  
+
   tradesPage: number = 1;
   tradesPageSize: number = 10;
   totalTrades: number = 0;
@@ -86,7 +86,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     private wsService: WebsocketService,
     private cdr: ChangeDetectorRef,
     private router: Router
-  ) {}
+  ) { }
 
   askAI() {
     if (!this.status || !this.priceLogs[0]) return;
@@ -226,7 +226,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit() {
     this.fetchData();
     this.refreshSub = interval(60000).subscribe(() => this.fetchData());
-    
+
     this.wsSub = this.wsService.getMessages().subscribe(msg => {
       this.handleWsMessage(msg);
     });
@@ -249,9 +249,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       this.priceLogs.unshift(newLog);
       if (this.priceLogs.length > 50) this.priceLogs.pop();
       // Guardar indicadores adicionales si llegan en PRICE_UPDATE
-      if (data.rsi_prev)     this.liveRsiPrev    = parseFloat(data.rsi_prev);
-      if (data.ema200)       this.liveEma200     = parseFloat(data.ema200);
-      if (data.adx)          this.liveAdx        = parseFloat(data.adx);
+      if (data.rsi_prev) this.liveRsiPrev = parseFloat(data.rsi_prev);
+      if (data.ema200) this.liveEma200 = parseFloat(data.ema200);
+      if (data.adx) this.liveAdx = parseFloat(data.adx);
       if (data.volume_ratio) this.liveVolumeRatio = parseFloat(data.volume_ratio);
       this.updateChart();
     }
@@ -270,20 +270,20 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.dcaEntries = [];
       }
       // Indicadores opcionales en STATUS_UPDATE
-      if (data.ema200)         this.liveEma200      = parseFloat(data.ema200)      || this.liveEma200;
-      if (data.adx)            this.liveAdx         = parseFloat(data.adx)         || this.liveAdx;
-      if (data.volume_ratio)   this.liveVolumeRatio = parseFloat(data.volume_ratio) || this.liveVolumeRatio;
+      if (data.ema200) this.liveEma200 = parseFloat(data.ema200) || this.liveEma200;
+      if (data.adx) this.liveAdx = parseFloat(data.adx) || this.liveAdx;
+      if (data.volume_ratio) this.liveVolumeRatio = parseFloat(data.volume_ratio) || this.liveVolumeRatio;
       this.updateChart();
     }
     else if (type === 'NEW_TRADE') {
       this.loadTrades(1);
       this.apiService.getBalance().subscribe(res => {
-         const bals = res && res.balances ? res.balances : [];
-         this.balances = bals.map((b: any) => ({
-           asset: b.asset,
-           free: parseFloat(b.free || '0'),
-           locked: parseFloat(b.locked || '0')
-         }));
+        const bals = res && res.balances ? res.balances : [];
+        this.balances = bals.map((b: any) => ({
+          asset: b.asset,
+          free: parseFloat(b.free || '0'),
+          locked: parseFloat(b.locked || '0')
+        }));
       });
     }
 
@@ -407,9 +407,9 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
         this.updateChart();
         this.cdr.detectChanges();
       },
-      error: () => { 
-        this.apiOnline = false; 
-        this.cdr.detectChanges(); 
+      error: () => {
+        this.apiOnline = false;
+        this.cdr.detectChanges();
       }
     });
 
@@ -453,7 +453,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   calculatePerformance() {
     const sellTrades = this.trades.filter(t => t.side === 'SELL' && t.pnl !== null);
     this.totalPnL = sellTrades.reduce((acc, curr) => acc + (parseFloat(curr.pnl) || 0), 0);
-    
+
     const totalInvestment = sellTrades.reduce((acc, curr) => acc + (parseFloat(curr.price) * parseFloat(curr.quantity)), 0);
     this.totalROI = totalInvestment > 0 ? (this.totalPnL / totalInvestment) * 100 : 0;
 
@@ -468,7 +468,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   calculateBotInventory() {
     const inventory: { [key: string]: number } = {};
     const sortedTrades = [...this.trades].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    
+
     sortedTrades.forEach(trade => {
       const qty = parseFloat(trade.quantity) || 0;
       if (trade.side === 'BUY') {
@@ -484,6 +484,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       quantity: inventory[symbol]
     })).filter(item => item.quantity > 0.0001);
   }
+
+  // ── Navegación ──────────────────────────────────────────────────────────────
+  goToPerformance() { this.router.navigate(['/performance']); }
+  goToSignals() { this.router.navigate(['/signals']); }
 
   formatPrice(price: any): string {
     const p = parseFloat(price);
