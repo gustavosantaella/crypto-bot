@@ -483,6 +483,18 @@ class BotEngine:
                 )
                 notify_price_update(SYMBOL, price, ind)
 
+                # -- 7. Resumen periódico de estado a Telegram (cada 5 min) ------
+                TelegramNotifier.maybe_send_status(
+                    symbol=SYMBOL, price=price, ind=ind, dyn=dyn,
+                    has_position=self.has_position,
+                    avg_price=self.avg_entry_price,
+                    target_tp=self.target_tp,
+                    target_sl=self.target_sl,
+                    dca_count=len(self.dca_entries),
+                    max_dca=MAX_DCA_ORDERS,
+                    breakeven=self.breakeven_activated
+                )
+
                 # ── 6. Ejecutar señal ──────────────────────────────────────────
 
                 if signal == 'BUY':
@@ -574,6 +586,7 @@ class BotEngine:
 
             except Exception as e:
                 logging.error(f"Error en ciclo del bot: {e}", exc_info=True)
+                TelegramNotifier.notify_error("Ciclo principal del bot", e)
                 time.sleep(20)
 
             time.sleep(CHECK_INTERVAL)
