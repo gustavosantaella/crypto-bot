@@ -53,9 +53,15 @@
         </h3>
         <div style="text-align: center; margin-bottom: 1.5rem;">
           <div [style.color]="status.has_position ? 'var(--primary)' : 'var(--text-muted)'" style="font-size: 2.5rem; font-weight: 800; line-height: 1;">
-            {{ status.has_position ? 'TRADING' : 'WAITING' }}
+            {{ status.has_position ? (status.trade_type || 'TRADING') : 'WAITING' }}
           </div>
-          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">{{ status.has_position ? 'Monitoring Take Profit / Stop Loss' : 'Scanning RSI for Entry Signal' }}</p>
+          <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">
+            {{ status.has_position ? 'DCA Active — Monitoring TP / SL' : 'Scanning RSI + EMA200 for Entry' }}
+          </p>
+          <!-- Breakeven Badge -->
+          <div *ngIf="status.has_position && status.breakeven" style="margin-top: 0.6rem; display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); border-radius: 100px; padding: 0.2rem 0.7rem; font-size: 0.65rem; font-weight: 800; color: var(--success); letter-spacing: 1px;">
+            🛡️ BREAKEVEN ACTIVE
+          </div>
         </div>
 
         <div *ngIf="status.has_position" class="position-info" style="padding: 0; background: transparent; border: none;">
@@ -69,10 +75,72 @@
           </div>
 
           <div class="info-row" style="margin-bottom: 1rem; padding: 0 0.5rem;">
-            <span>ENTRY PRICE</span>
+            <span>AVG ENTRY</span>
             <span class="val primary" style="font-size: 1rem;">${{ formatPrice(status.last_buy_price) }}</span>
           </div>
 
+          <!-- DCA Entries Table -->
+          <div style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+              <span style="font-size: 0.65rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">DCA Entries</span>
+              <span style="font-size: 0.8rem; font-weight: 800; color: var(--primary);">{{ dcaCount }} / {{ maxDca }}</span>
+            </div>
+            <!-- Tabla con detalle de cada entrada -->
+            <div *ngIf="dcaEntries.length > 0" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.6rem; overflow: hidden;">
+              <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.35rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">#</span>
+                <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">ENTRY</span>
+                <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">QTY</span>
+                <span style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700; text-align: right;">uPnL</span>
+              </div>
+              <div *ngFor="let entry of dcaEntries; let i = index"
+                   style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.03);">
+                <span style="font-size: 0.68rem; color: var(--text-muted); font-weight: 700;">{{ i + 1 }}</span>
+                <span style="font-size: 0.72rem; font-weight: 700; text-align: right; color: #fff;">${{ entry.price | number:'1.2-2' }}</span>
+                <span style="font-size: 0.68rem; text-align: right; color: var(--text-muted);">{{ entry.quantity | number:'1.4-4' }}</span>
+                <span style="font-size: 0.72rem; font-weight: 700; text-align: right;"
+                      [style.color]="(currentPrice - entry.price) * entry.quantity >= 0 ? 'var(--success)' : 'var(--danger)'">
+                  {{ (currentPrice - entry.price) * entry.quantity >= 0 ? '+' : '' }}{{ ((currentPrice - entry.price) * entry.quantity) | number:'1.2-2' }}
+                </span>
+              </div>
+              <!-- Fila total -->
+              <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; background: rgba(0,210,255,0.04); border-top: 1px solid rgba(0,210,255,0.1);">
+                <span style="font-size: 0.6rem; color: var(--primary); font-weight: 800; grid-column: 1/3;">AVG ${{ formatPrice(status.last_buy_price) }}</span>
+                <span style="font-size: 0.6rem; color: var(--text-muted); text-align: right;">total</span>
+                <span style="font-size: 0.72rem; font-weight: 800; text-align: right;"
+                      [style.color]="unrealizedPnL !== null && unrealizedPnL >= 0 ? 'var(--success)' : 'var(--danger)'">
+                  {{ unrealizedPnL !== null ? ((unrealizedPnL >= 0 ? '+' : '') + (unrealizedPnL | number:'1.2-2')) : '--' }}
+                </span>
+              </div>
+            </div>
+            <!-- Sin entradas activas -->
+            <div *ngIf="dcaEntries.length === 0"
+                 style="text-align: center; font-size: 0.65rem; color: var(--text-muted); padding: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 0.6rem;">
+              Sin entradas DCA activas
+            </div>
+          </div>
+
+          <!-- TP Progress Bar -->
+          <div *ngIf="status.target_take_profit" style="margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-muted); margin-bottom: 0.3rem;">
+              <span>SL ${{ formatPrice(status.target_stop_loss) }}</span>
+              <span style="color: var(--success);">Progreso al TP</span>
+              <span>TP ${{ formatPrice(status.target_take_profit) }}</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.06); border-radius: 100px; height: 8px; overflow: hidden;">
+              <div [style.width]="tpProgress + '%'" 
+                   [style.background]="tpProgress > 70 ? 'var(--success)' : (tpProgress > 30 ? '#f59e0b' : 'var(--primary)')"
+                   style="height: 100%; border-radius: 100px; transition: width 0.5s ease; box-shadow: 0 0 8px currentColor;">
+              </div>
+            </div>
+            <div style="text-align: center; font-size: 0.6rem; color: var(--text-muted); margin-top: 0.3rem;">{{ tpProgress | number:'1.0-0' }}%</div>
+          </div>
+
+          <!-- TP/SL: GLOBALES — un solo par de ordenes en Binance para toda la posicion,
+               recalculados desde el avg_price cada vez que entra una orden DCA nueva. -->
+          <div style="margin-bottom: 0.4rem; font-size: 0.55rem; color: var(--text-muted); text-align: center; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7;">
+            Niveles globales &mdash; basados en precio promedio
+          </div>
           <!-- TP & SL Grid -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
             <!-- TP Box -->
@@ -80,13 +148,14 @@
               <div style="font-size: 0.6rem; color: var(--success); font-weight: 800; margin-bottom: 0.25rem;">TARGET TP</div>
               <div style="font-size: 0.95rem; font-weight: 700; color: var(--success);">${{ formatPrice(status.target_take_profit) }}</div>
               <div *ngIf="tpDistance" [style.color]="tpDistance.diff > 0 ? 'var(--text-muted)' : 'var(--success)'" style="font-size: 0.65rem; margin-top: 4px; font-weight: 600;">
-                {{ tpDistance.diff > 0 ? '' : '✓ ' }}{{ tpDistance.pct | number:'1.2-2' }}%
+                {{ tpDistance.pct | number:'1.2-2' }}%
               </div>
             </div>
-
             <!-- SL Box -->
             <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.15); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
-              <div style="font-size: 0.6rem; color: var(--danger); font-weight: 800; margin-bottom: 0.25rem;">STOP LOSS</div>
+              <div style="font-size: 0.6rem; color: var(--danger); font-weight: 800; margin-bottom: 0.25rem;">
+                {{ status.breakeven ? '🛡️ BREAKEVEN' : 'STOP LOSS' }}
+              </div>
               <div style="font-size: 0.95rem; font-weight: 700; color: var(--danger);">${{ formatPrice(status.target_stop_loss) }}</div>
               <div *ngIf="slDistance" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;">
                 {{ slDistance.pct | number:'1.2-2' }}%
@@ -99,6 +168,56 @@
             <span *ngIf="tpDistance">To TP: <b>${{ (tpDistance.diff < 0 ? 0 : tpDistance.diff) | number:'1.2-2' }}</b></span>
             <span *ngIf="tpDistance && slDistance" style="margin: 0 0.5rem; opacity: 0.3;">|</span>
             <span *ngIf="slDistance">To SL: <b>${{ (slDistance.diff < 0 ? 0 : slDistance.diff) | number:'1.2-2' }}</b></span>
+          </div>
+        </div>
+
+        <!-- Technical Indicators Panel (siempre visible) -->
+        <div style="margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 1rem;">
+          <div style="font-size: 0.6rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 0.75rem;">Technical Indicators</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+
+            <!-- RSI -->
+            <div style="background: rgba(255,255,255,0.03); border-radius: 0.5rem; padding: 0.5rem 0.75rem;">
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">RSI (14)</div>
+              <div style="font-size: 0.95rem; font-weight: 800;" [style.color]="rsiLabelColor">
+                {{ priceLogs.length > 0 ? (priceLogs[0].rsi | number:'1.1-1') : '--' }}
+              </div>
+              <div style="font-size: 0.55rem; font-weight: 700;" [style.color]="rsiLabelColor">{{ rsiLabel }}</div>
+            </div>
+
+            <!-- ADX -->
+            <div style="background: rgba(255,255,255,0.03); border-radius: 0.5rem; padding: 0.5rem 0.75rem;">
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">ADX (14)</div>
+              <div style="font-size: 0.95rem; font-weight: 800;" 
+                   [style.color]="liveAdx > 25 ? '#f59e0b' : 'var(--text-muted)'">
+                {{ liveAdx > 0 ? (liveAdx | number:'1.1-1') : '--' }}
+              </div>
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">
+                {{ liveAdx > 35 ? 'STRONG TREND' : (liveAdx > 25 ? 'TRENDING' : 'RANGING') }}
+              </div>
+            </div>
+
+            <!-- EMA 200 -->
+            <div style="background: rgba(255,255,255,0.03); border-radius: 0.5rem; padding: 0.5rem 0.75rem;">
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">EMA 200</div>
+              <div style="font-size: 0.85rem; font-weight: 800; color: #fff;">
+                {{ liveEma200 > 0 ? ('$' + (liveEma200 | number:'1.2-2')) : '--' }}
+              </div>
+              <div style="font-size: 0.55rem; font-weight: 700;" [style.color]="priceVsEmaColor">{{ priceVsEma }}</div>
+            </div>
+
+            <!-- Volume Ratio -->
+            <div style="background: rgba(255,255,255,0.03); border-radius: 0.5rem; padding: 0.5rem 0.75rem;">
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">VOLUME</div>
+              <div style="font-size: 0.95rem; font-weight: 800;"
+                   [style.color]="liveVolumeRatio >= 1.2 ? 'var(--success)' : (liveVolumeRatio > 0 ? 'var(--text-muted)' : 'var(--text-muted)')">
+                {{ liveVolumeRatio > 0 ? (liveVolumeRatio | number:'1.2-2') + 'x' : '--' }}
+              </div>
+              <div style="font-size: 0.55rem; color: var(--text-muted); font-weight: 700;">
+                {{ liveVolumeRatio >= 1.2 ? 'HIGH VOLUME' : (liveVolumeRatio > 0 ? 'NORMAL' : 'NO DATA') }}
+              </div>
+            </div>
+
           </div>
         </div>
 

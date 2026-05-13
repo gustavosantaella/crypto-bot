@@ -48,14 +48,20 @@ class BotEngine:
             self.trade_type
         )
         notify_status_update({
-            "has_position":      self.has_position,
-            "last_buy_price":    self.avg_entry_price,
-            "target_take_profit": self.target_tp,
-            "target_stop_loss":  self.target_sl,
-            "trade_type":        self.trade_type,
-            "dca_count":         len(self.dca_entries),
-            "breakeven":         self.breakeven_activated,
-            "updated_at":        None
+            "has_position":       self.has_position,
+            "last_buy_price":     self.avg_entry_price,   # Precio promedio ponderado
+            "target_take_profit": self.target_tp,          # TP global (calculado desde avg)
+            "target_stop_loss":   self.target_sl,          # SL global (calculado desde avg)
+            "trade_type":         self.trade_type,
+            # DCA: cuantas entradas hay y el detalle de cada una
+            "dca_count":          len(self.dca_entries),
+            "max_dca_orders":     MAX_DCA_ORDERS,
+            # Lista de entradas DCA con precio y cantidad de cada una
+            # [{"price": 95.0, "quantity": 0.1}, {"price": 93.0, "quantity": 0.1}]
+            "dca_entries":        self.dca_entries,
+            # Trailing stop
+            "breakeven":          self.breakeven_activated,
+            "updated_at":         None
         })
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -402,7 +408,7 @@ class BotEngine:
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Breakeven: {'ON' if self.breakeven_activated else 'OFF'}"
                 )
-                notify_price_update(SYMBOL, price, rsi)
+                notify_price_update(SYMBOL, price, ind)
 
                 # ── 6. Ejecutar señal ──────────────────────────────────────────
 

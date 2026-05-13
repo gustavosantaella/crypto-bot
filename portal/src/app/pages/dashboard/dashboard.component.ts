@@ -56,7 +56,16 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   apiOnline: boolean = false;
   botInventory: any[] = [];
   showDocs: boolean = false;
-  
+
+  // Indicadores en vivo (llegados por WebSocket)
+  liveRsiPrev: number = 0;
+  liveEma200: number = 0;
+  liveAdx: number = 0;
+  liveVolumeRatio: number = 0;
+
+  // Entradas DCA individuales: [{price: number, quantity: number}]
+  dcaEntries: {price: number, quantity: number}[] = [];
+
   // AI State
   showAiModal: boolean = false;
   aiLoading: boolean = false;
@@ -117,6 +126,70 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     return this.priceLogs[0]?.price || 0;
   }
 
+  // PnL no realizado total: suma de (precio_actual - precio_entrada) * cantidad de cada entrada DCA
+  get unrealizedPnL(): number | null {
+    if (!this.status.has_position || !this.currentPrice) return null;
+    // Si tenemos el detalle de entradas, lo calculamos con precision
+    if (this.dcaEntries.length > 0) {
+      const total = this.dcaEntries.reduce((acc, e) => {
+        return acc + (this.currentPrice - e.price) * e.quantity;
+      }, 0);
+      return total;
+    }
+    // Fallback: usar precio promedio y asumir cantidad de dca_count
+    if (!this.status.last_buy_price) return null;
+    const avg = parseFloat(this.status.last_buy_price);
+    return (this.currentPrice - avg) * this.dcaCount;
+  }
+
+  // Porcentaje de progreso hacia el TP desde el precio de entrada
+  get tpProgress(): number {
+    if (!this.status.has_position || !this.status.last_buy_price || !this.status.target_take_profit || !this.currentPrice) return 0;
+    const avg = parseFloat(this.status.last_buy_price);
+    const tp = parseFloat(this.status.target_take_profit);
+    const sl = parseFloat(this.status.target_stop_loss || avg);
+    const totalRange = Math.abs(tp - sl);
+    if (totalRange === 0) return 0;
+    const progress = Math.abs(this.currentPrice - avg);
+    return Math.min(100, Math.max(0, (progress / totalRange) * 100));
+  }
+
+  // Etiqueta de RSI con estado
+  get rsiLabel(): string {
+    const rsi = this.priceLogs[0]?.rsi || 0;
+    if (rsi < 30) return 'OVERSOLD';
+    if (rsi > 68) return 'OVERBOUGHT';
+    return 'NEUTRAL';
+  }
+
+  get rsiLabelColor(): string {
+    const rsi = this.priceLogs[0]?.rsi || 0;
+    if (rsi < 30) return 'var(--success)';
+    if (rsi > 68) return 'var(--danger)';
+    return 'var(--text-muted)';
+  }
+
+  // Precio por encima o por debajo de la EMA200
+  get priceVsEma(): string {
+    if (!this.liveEma200 || !this.currentPrice) return '---';
+    return this.currentPrice > this.liveEma200 ? 'ABOVE EMA' : 'BELOW EMA';
+  }
+
+  get priceVsEmaColor(): string {
+    if (!this.liveEma200 || !this.currentPrice) return 'var(--text-muted)';
+    return this.currentPrice > this.liveEma200 ? 'var(--success)' : 'var(--danger)';
+  }
+
+  // Numero de entradas DCA activas
+  get dcaCount(): number {
+    return parseInt(this.status.dca_count || '0');
+  }
+
+  // Maximo de entradas (enviado por el bot)
+  get maxDca(): number {
+    return parseInt(this.status.max_dca_orders || '3');
+  }
+
   get tpDistance() {
     if (!this.status.has_position || !this.status.target_take_profit || !this.currentPrice) return null;
     const isLong = this.status.trade_type === 'LONG';
@@ -165,7 +238,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   handleWsMessage(msg: any) {
     const { type, data } = msg;
-    
+
     if (type === 'PRICE_UPDATE') {
       const newLog: PriceLog = {
         symbol: data.symbol,
@@ -175,13 +248,31 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
       };
       this.priceLogs.unshift(newLog);
       if (this.priceLogs.length > 50) this.priceLogs.pop();
+      // Guardar indicadores adicionales si llegan en PRICE_UPDATE
+      if (data.rsi_prev)     this.liveRsiPrev    = parseFloat(data.rsi_prev);
+      if (data.ema200)       this.liveEma200     = parseFloat(data.ema200);
+      if (data.adx)          this.liveAdx        = parseFloat(data.adx);
+      if (data.volume_ratio) this.liveVolumeRatio = parseFloat(data.volume_ratio);
       this.updateChart();
-    } 
+    }
     else if (type === 'STATUS_UPDATE') {
       this.status = {
         ...data,
         updated_at: data.updated_at || new Date().toISOString()
       };
+      // Capturar entradas DCA individuales para la tabla del portal
+      if (data.dca_entries && Array.isArray(data.dca_entries)) {
+        this.dcaEntries = data.dca_entries.map((e: any) => ({
+          price: parseFloat(e.price),
+          quantity: parseFloat(e.quantity)
+        }));
+      } else if (!data.has_position) {
+        this.dcaEntries = [];
+      }
+      // Indicadores opcionales en STATUS_UPDATE
+      if (data.ema200)         this.liveEma200      = parseFloat(data.ema200)      || this.liveEma200;
+      if (data.adx)            this.liveAdx         = parseFloat(data.adx)         || this.liveAdx;
+      if (data.volume_ratio)   this.liveVolumeRatio = parseFloat(data.volume_ratio) || this.liveVolumeRatio;
       this.updateChart();
     }
     else if (type === 'NEW_TRADE') {
@@ -195,7 +286,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
          }));
       });
     }
-    
+
     this.cdr.detectChanges();
   }
 
