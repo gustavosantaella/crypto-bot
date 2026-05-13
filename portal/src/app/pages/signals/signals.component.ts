@@ -25,6 +25,11 @@ declare var Chart: any;
 
   <!-- Live indicator pills -->
   <div class="metrics-bar" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));">
+    <div class="glass-card" style="padding:.75rem;text-align:center;border-color:rgba(0,210,255,0.3);">
+      <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">PRECIO ACTUAL</div>
+      <div style="font-size:1.4rem;font-weight:900;" [style.color]="priceVsEmaColor">$ {{ live?.price | number:'1.2-2' }}</div>
+      <div style="font-size:.6rem;font-weight:700;" [style.color]="priceVsEmaColor">{{ priceVsEma }}</div>
+    </div>
     <div class="glass-card" style="padding:.75rem;text-align:center;">
       <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">RSI (14)</div>
       <div style="font-size:1.8rem;font-weight:900;" [style.color]="rsiColor">{{ live?.rsi | number:'1.1-1' }}</div>
