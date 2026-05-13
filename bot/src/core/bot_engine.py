@@ -1,5 +1,6 @@
 import time
 import logging
+import requests
 from src.core.exchange import ExchangeManager
 from src.strategies.rsi_strategy import RSIStrategy
 from src.strategies.parameter_adapter import get_dynamic_params
@@ -18,9 +19,14 @@ class BotEngine:
     def __init__(self):
         self.exchange = ExchangeManager()
 
-        # ── Estado principal ───────────────────────────────────────────────────
+        # -- Estado principal ---------------------------------------------------
         self.has_position = False      # True si hay al menos una posición abierta
         self.trade_type = "LONG"       # Tipo: LONG o SHORT
+
+        # -- IA Local Caching ---------------------------------------------------
+        self._last_ai_time = 0.0
+        self._cached_ai_prediction = "HOLD 😐"
+        self._cached_ai_accuracy = 0.0
 
         # ── Gestión de riesgo ─────────────────────────────────────────────────
         self.target_tp = None          # Precio de Take Profit (desde precio promedio)
@@ -472,14 +478,32 @@ class BotEngine:
                 # -- 5. Persistir precio + indicadores en DB cada ciclo --
                 log_price(SYMBOL, price, ind)
 
+                # -- 5b. Consultar IA Local (Entrena y predice) ----------------
+                now_time = time.time()
+                # Solo llamamos a la IA cada 30 segundos para no saturar la DB
+                if now_time - self._last_ai_time >= 30:
+                    self._last_ai_time = now_time  # Actualizamos inmediatamente para evitar bucles si falla
+                    try:
+                        ai_response = requests.get("http://127.0.0.1:8000/api/v1/local-ai/predict", timeout=2)
+                        if ai_response.status_code == 200:
+                            ai_data = ai_response.json()
+                            if "prediction" in ai_data:
+                                self._cached_ai_prediction = ai_data["prediction"]
+                                self._cached_ai_accuracy = ai_data.get("model_accuracy", 0.0)
+                    except Exception as e:
+                        # Silencioso si la API está apagada
+                        pass
+
+                ai_prediction = self._cached_ai_prediction
+                ai_accuracy = self._cached_ai_accuracy
+
                 # -- 6. Log del ciclo --
                 logging.info(
-                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} ({ind['rsi_prev']:.1f}) | "
-                    f"ADX: {adx:.1f} | EMA200: {ind['ema_slow']:.2f} | "
-                    f"Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
+                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} | "
+                    f"ADX: {adx:.1f} | Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
+                    f"IA: {ai_prediction} ({ai_accuracy:.1%}) | "
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
-                    f"Breakeven: {'ON' if self.breakeven_activated else 'OFF'} | "
-                    f"Mode: {dyn['mode_active']} | RSI_umbral: {dyn['rsi_oversold']:.0f}"
+                    f"Mode: {dyn['mode_active']}"
                 )
                 notify_price_update(SYMBOL, price, ind)
 

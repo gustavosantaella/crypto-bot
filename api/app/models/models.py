@@ -31,7 +31,7 @@ class PriceLog(Base):
     ema_slow     = Column(Numeric(20, 8), nullable=True)
     volume_ratio = Column(Numeric(10, 4), nullable=True)
     atr          = Column(Numeric(20, 8), nullable=True)
-    timestamp    = Column(DateTime, default=datetime.datetime.utcnow)
+    timestamp    = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 class BotStatus(Base):
     __tablename__ = "bot_status"
