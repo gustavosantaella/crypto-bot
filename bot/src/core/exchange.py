@@ -170,6 +170,51 @@ class ExchangeManager:
         except Exception as e:
             logging.error(f"Error cancelando órdenes: {e}")
 
+    def cleanup_duplicate_orders(self, symbol):
+        """
+        Detecta y elimina órdenes SL/TP duplicadas en Binance.
+        Solo debería haber 1 STOP_MARKET y 1 TAKE_PROFIT_MARKET activos.
+        Si hay más, cancela los más viejos y conserva el más reciente de cada tipo.
+        Llamar después de set_sl_tp para garantizar un estado limpio.
+        """
+        try:
+            open_orders = self.client.futures_get_open_orders(symbol=symbol)
+            if not open_orders:
+                return
+
+            # Agrupar por tipo de orden
+            stop_orders = sorted(
+                [o for o in open_orders if o['type'] == 'STOP_MARKET'],
+                key=lambda o: o['orderId'], reverse=True  # más reciente primero
+            )
+            tp_orders = sorted(
+                [o for o in open_orders if o['type'] == 'TAKE_PROFIT_MARKET'],
+                key=lambda o: o['orderId'], reverse=True
+            )
+
+            cancelled = 0
+
+            # Conservar solo el más reciente de cada tipo, cancelar los demás
+            for order in stop_orders[1:]:
+                self.client.futures_cancel_order(symbol=symbol, orderId=order['orderId'])
+                logging.warning(f"[CLEANUP] Cancelado SL duplicado: orderId={order['orderId']} stopPrice={order['stopPrice']}")
+                cancelled += 1
+
+            for order in tp_orders[1:]:
+                self.client.futures_cancel_order(symbol=symbol, orderId=order['orderId'])
+                logging.warning(f"[CLEANUP] Cancelado TP duplicado: orderId={order['orderId']} stopPrice={order['stopPrice']}")
+                cancelled += 1
+
+            if cancelled > 0:
+                logging.warning(f"[CLEANUP] {cancelled} orden(es) duplicada(s) eliminada(s). "
+                                f"SL activos: {len(stop_orders)} → 1 | TP activos: {len(tp_orders)} → 1")
+            else:
+                logging.info(f"[CLEANUP] OK — Sin duplicados. SL: {len(stop_orders)} | TP: {len(tp_orders)}")
+
+        except Exception as e:
+            logging.error(f"[CLEANUP] Error al limpiar órdenes duplicadas: {e}")
+
+
     def execute_market_order(self, symbol, side, quantity):
         try:
             rounded_qty = self.round_quantity(symbol, quantity)

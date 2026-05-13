@@ -222,6 +222,7 @@ class BotEngine:
                 self.exchange.cancel_all_orders(SYMBOL)
                 total_qty = self._total_quantity()
                 self.exchange.set_sl_tp(SYMBOL, 'BUY', self.target_sl, self.target_tp, total_qty)
+                self.exchange.cleanup_duplicate_orders(SYMBOL)
 
                 # Guardar en DB y notificar
                 self._sync_db_status()
@@ -282,6 +283,7 @@ class BotEngine:
                 self.target_sl, self.target_tp,
                 self._total_quantity()
             )
+            self.exchange.cleanup_duplicate_orders(SYMBOL)
 
             # Registrar trade en la base de datos
             log_trade(
@@ -429,6 +431,7 @@ class BotEngine:
                         self.target_sl, self.target_tp,
                         self._total_quantity()
                     )
+                    self.exchange.cleanup_duplicate_orders(SYMBOL)
                     self._sync_db_status()
                     logging.warning(
                         f"[RECOVERY] TP/SL recalculados desde ATR | "
