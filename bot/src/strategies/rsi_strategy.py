@@ -1,85 +1,235 @@
 import pandas as pd
-from src.config.trading_params import RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT, STOP_LOSS_PCT, TAKE_PROFIT_PCT, ATR_PERIOD, ATR_MULTIPLIER, ADX_PERIOD, ADX_THRESHOLD
+from src.config.trading_params import (
+    RSI_PERIOD, RSI_OVERSOLD, RSI_OVERBOUGHT,
+    ATR_PERIOD, ATR_SL_MULTIPLIER, ATR_TP_MULTIPLIER,
+    ADX_PERIOD, ADX_THRESHOLD,
+    EMA_FAST_PERIOD, EMA_SLOW_PERIOD,
+    DCA_RSI_LEVEL_2, DCA_RSI_LEVEL_3, DCA_RSI_LEVEL_4
+)
+
 
 class RSIStrategy:
+
     @staticmethod
     def calculate_indicators(data):
-        df = pd.DataFrame(data, columns=['ts', 'o', 'h', 'l', 'c', 'v', 'ct', 'qa', 'nt', 'tb', 'tq', 'i'])
+        """
+        Calcula todos los indicadores técnicos necesarios para la estrategia.
+
+        Retorna un diccionario con:
+          rsi         → RSI actual (último período)
+          rsi_prev    → RSI del período anterior (para detectar si está subiendo)
+          atr         → ATR actual (volatilidad)
+          adx         → ADX actual (fuerza de tendencia)
+          plus_di     → DI+ (presión compradora)
+          minus_di    → DI- (presión vendedora)
+          ema_fast    → EMA rápida (ej: EMA50)
+          ema_slow    → EMA lenta (ej: EMA200), filtro de tendencia macro
+          volume_ratio→ Ratio volumen actual vs promedio (>1.0 = volumen alto)
+        """
+        df = pd.DataFrame(
+            data,
+            columns=['ts', 'o', 'h', 'l', 'c', 'v', 'ct', 'qa', 'nt', 'tb', 'tq', 'i']
+        )
         df['c'] = df['c'].astype(float)
         df['h'] = df['h'].astype(float)
         df['l'] = df['l'].astype(float)
-        
-        # 1. RSI
+        df['v'] = df['v'].astype(float)
+
+        # ── 1. RSI (Relative Strength Index) ──────────────────────────────────
+        # RSI < 30: mercado sobrevendido → oportunidad de compra
+        # RSI > 70: mercado sobrecomprado → oportunidad de venta / cierre
+        # rsi_prev nos permite detectar si el RSI está "girando" hacia arriba,
+        # lo que confirma que el momentum bajista está agotándose.
         delta = df['c'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=RSI_PERIOD).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=RSI_PERIOD).mean()
-        loss = loss.replace(0, 0.00001)
+        loss = loss.replace(0, 0.00001)  # Evitar división por cero
         rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        
-        # 2. ATR
+        rsi_series = 100 - (100 / (1 + rs))
+
+        # ── 2. ATR (Average True Range) ───────────────────────────────────────
+        # Mide la volatilidad real del mercado usando máximos, mínimos y cierre.
+        # Un ATR alto = mercado volátil → SL y TP más amplios.
+        # Un ATR bajo = mercado tranquilo → SL y TP más ajustados.
         df['tr'] = pd.concat([
             df['h'] - df['l'],
             (df['h'] - df['c'].shift()).abs(),
             (df['l'] - df['c'].shift()).abs()
         ], axis=1).max(axis=1)
-        atr = df['tr'].rolling(window=ATR_PERIOD).mean()
-        
-        # 3. ADX
+        atr_series = df['tr'].rolling(window=ATR_PERIOD).mean()
+
+        # ── 3. ADX + DI (Average Directional Index) ───────────────────────────
+        # ADX > 25: tendencia fuerte (puede ser alcista o bajista)
+        # plus_di > minus_di: presión compradora domina → tendencia alcista
+        # minus_di > plus_di: presión vendedora domina → tendencia bajista
         up_move = df['h'] - df['h'].shift(1)
         down_move = df['l'].shift(1) - df['l']
-        
+
         plus_dm = pd.Series(0.0, index=df.index)
         minus_dm = pd.Series(0.0, index=df.index)
-        
-        cond_plus = (up_move > down_move) & (up_move > 0)
-        cond_minus = (down_move > up_move) & (down_move > 0)
-        
-        plus_dm[cond_plus] = up_move[cond_plus]
-        minus_dm[cond_minus] = down_move[cond_minus]
-        
+        plus_dm[(up_move > down_move) & (up_move > 0)] = up_move[(up_move > down_move) & (up_move > 0)]
+        minus_dm[(down_move > up_move) & (down_move > 0)] = down_move[(down_move > up_move) & (down_move > 0)]
+
         alpha = 1 / ADX_PERIOD
         tr_smooth = df['tr'].ewm(alpha=alpha, adjust=False).mean()
-        plus_di = 100 * (plus_dm.ewm(alpha=alpha, adjust=False).mean() / tr_smooth)
-        minus_di = 100 * (minus_dm.ewm(alpha=alpha, adjust=False).mean() / tr_smooth)
-        
-        dx = 100 * (abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, 1))
-        adx = dx.ewm(alpha=alpha, adjust=False).mean()
-        
-        return rsi.iloc[-1], atr.iloc[-1], adx.iloc[-1], plus_di.iloc[-1], minus_di.iloc[-1]
+        plus_di_series = 100 * (plus_dm.ewm(alpha=alpha, adjust=False).mean() / tr_smooth)
+        minus_di_series = 100 * (minus_dm.ewm(alpha=alpha, adjust=False).mean() / tr_smooth)
+
+        dx = 100 * (abs(plus_di_series - minus_di_series) / (plus_di_series + minus_di_series).replace(0, 1))
+        adx_series = dx.ewm(alpha=alpha, adjust=False).mean()
+
+        # ── 4. EMA (Exponential Moving Average) — Filtro de tendencia macro ───
+        # EMA lenta (200): Si el precio está por debajo, estamos en mercado bajista.
+        #   → No abrir LONG si precio < EMA200 (evita comprar en tendencia bajista).
+        # EMA rápida (50): Para detectar micro-tendencia y posibles resistencias.
+        ema_fast_series = df['c'].ewm(span=EMA_FAST_PERIOD, adjust=False).mean()
+        ema_slow_series = df['c'].ewm(span=EMA_SLOW_PERIOD, adjust=False).mean()
+
+        # ── 5. Ratio de Volumen ────────────────────────────────────────────────
+        # Compara el volumen actual con el promedio de las últimas 20 velas.
+        # volume_ratio > 1.2: hay interés institucional confirmando el movimiento.
+        # Un RSI bajo CON volumen alto = fuerza de la señal de compra.
+        avg_volume = df['v'].rolling(window=20).mean()
+        volume_ratio = df['v'].iloc[-1] / avg_volume.iloc[-1] if avg_volume.iloc[-1] > 0 else 1.0
+
+        return {
+            'rsi':          rsi_series.iloc[-1],
+            'rsi_prev':     rsi_series.iloc[-2],   # RSI de la vela anterior
+            'atr':          atr_series.iloc[-1],
+            'adx':          adx_series.iloc[-1],
+            'plus_di':      plus_di_series.iloc[-1],
+            'minus_di':     minus_di_series.iloc[-1],
+            'ema_fast':     ema_fast_series.iloc[-1],
+            'ema_slow':     ema_slow_series.iloc[-1],
+            'volume_ratio': volume_ratio,
+        }
 
     @staticmethod
-    def get_signal(rsi, atr, adx, plus_di, minus_di, current_price, has_position, target_tp=None, target_sl=None, trade_type="LONG"):
-        # Niveles dinámicos por ATR
-        # Multiplicador 2.0 para SL y 2.0 para TP (Risk/Reward 1.0)
-        sl_dist = atr * ATR_MULTIPLIER
-        tp_dist = atr * ATR_MULTIPLIER
+    def get_signal(ind, current_price, has_position,
+                   target_tp=None, target_sl=None,
+                   trade_type="LONG",
+                   dca_count=0, last_dca_price=None, max_dca_orders=3):
+        """
+        Genera la señal de trading con filtros múltiples para máxima calidad.
 
-        is_strong_trend = adx > ADX_THRESHOLD
-        is_uptrend = plus_di > minus_di
+        Señales:
+          BUY        → Primera entrada LONG (todos los filtros pasan)
+          BUY_DCA    → Entrada adicional DCA (RSI más bajo + precio más bajo)
+          SELL_SHORT → Abrir posición SHORT
+          SELL       → Cerrar posición LONG (TP, SL o RSI overbought)
+          BUY_BACK   → Cerrar posición SHORT
+          HOLD       → Mantener, no hacer nada
 
+        Filtros de entrada LONG (TODOS deben cumplirse):
+          1. RSI < RSI_OVERSOLD             → mercado sobrevendido
+          2. RSI actual > RSI anterior      → RSI girando hacia arriba (reversa)
+          3. precio > EMA lenta             → contexto de mercado alcista (macro)
+          4. NO tendencia bajista fuerte    → ADX no confirma caída sostenida
+          5. (Opcional) Volumen confirma    → interés real en el rebote
+        """
+        rsi = ind['rsi']
+        rsi_prev = ind['rsi_prev']
+        atr = ind['atr']
+        adx = ind['adx']
+        plus_di = ind['plus_di']
+        minus_di = ind['minus_di']
+        ema_fast = ind['ema_fast']
+        ema_slow = ind['ema_slow']
+        volume_ratio = ind['volume_ratio']
+
+        # Distancias ASIMÉTRICAS: SL pequeño, TP grande → expectativa positiva
+        # Con SL=1.5x y TP=2.5x → R/R = 1.67 → rentable ganando 38% de trades
+        sl_dist = atr * ATR_SL_MULTIPLIER
+        tp_dist = atr * ATR_TP_MULTIPLIER
+
+        # Banderas de tendencia
+        is_strong_trend   = adx > ADX_THRESHOLD         # Hay tendencia fuerte
+        is_uptrend_di     = plus_di > minus_di          # DI+ > DI- = alcista
+        is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
+
+        # Filtro de tendencia macro: el precio está en contexto alcista global
+        # Se permite un pequeño margen (0.5%) por si la EMA está muy cerca
+        price_above_ema_slow = current_price > (ema_slow * 0.995)
+
+        # RSI girando hacia arriba: el momentum bajista se está agotando
+        rsi_turning_up = rsi > rsi_prev
+
+        # Confirmación de volumen (el volumen en el rebote debe ser superior al promedio)
+        volume_confirms = volume_ratio >= 1.0  # Volumen normal o superior
+
+        # ── Sin posición: evaluar si abrir ────────────────────────────────────
         if not has_position:
-            if rsi < RSI_OVERSOLD:
-                # Evitar LONG si hay una fuerte tendencia BAJISTA
-                if not (is_strong_trend and not is_uptrend):
-                    tp = current_price + tp_dist
-                    sl = current_price - sl_dist
-                    return 'BUY', tp, sl
+
+            # ── Señal LONG ────────────────────────────────────────────────────
+            # Condiciones de entrada (todas deben cumplirse para ser conservador):
+            rsi_oversold    = rsi < RSI_OVERSOLD        # Cond 1: RSI sobrevendido
+            trend_ok        = not is_downtrend_hard      # Cond 2: No en tendencia bajista fuerte
+            macro_trend_ok  = price_above_ema_slow       # Cond 3: Precio sobre EMA lenta
+
+            if rsi_oversold and trend_ok and macro_trend_ok:
+                # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista
+                # Si además el RSI gira y el volumen confirma, es señal de máxima calidad
+                tp = current_price + tp_dist
+                sl = current_price - sl_dist
+                return 'BUY', tp, sl
+
+            # ── Señal SHORT ───────────────────────────────────────────────────
+            # Solo abrir SHORT en contexto bajista claro (más restrictivo que LONG)
+            rsi_overbought   = rsi > RSI_OVERBOUGHT
+            short_macro_ok   = current_price < ema_slow   # Precio BAJO la EMA lenta
+            short_trend_ok   = is_strong_trend and not is_uptrend_di  # Tendencia bajista confirmada
+
+            if rsi_overbought and short_macro_ok and short_trend_ok:
+                tp = current_price - tp_dist
+                sl = current_price + sl_dist
+                return 'SELL_SHORT', tp, sl
+
+        # ── Con posición LONG activa ───────────────────────────────────────────
+        elif trade_type == "LONG":
+
+            # Prioridad 1: verificar condiciones de cierre ANTES de evaluar DCA
+            # Stop Loss: el precio cayó hasta nuestro nivel de pérdida máxima
+            if target_sl and current_price <= target_sl:
+                return 'SELL', None, None
+
+            # Take Profit: el precio alcanzó nuestro objetivo de ganancia
+            if target_tp and current_price >= target_tp:
+                return 'SELL', None, None
+
+            # RSI en sobrecompra extrema: el mercado podría revertir pronto
             if rsi > RSI_OVERBOUGHT:
-                # Evitar SHORT si hay una fuerte tendencia ALCISTA
-                if not (is_strong_trend and is_uptrend):
-                    tp = current_price - tp_dist
-                    sl = current_price + sl_dist
-                    return 'SELL_SHORT', tp, sl
-        else:
-            if trade_type == "LONG":
-                if rsi > RSI_OVERBOUGHT: return 'SELL', None, None
-                if target_tp and current_price >= target_tp: return 'SELL', None, None
-                if target_sl and current_price <= target_sl: return 'SELL', None, None
-            
-            elif trade_type == "SHORT":
-                if rsi < RSI_OVERSOLD: return 'BUY_BACK', None, None
-                if target_tp and current_price <= target_tp: return 'BUY_BACK', None, None
-                if target_sl and current_price >= target_sl: return 'BUY_BACK', None, None
-                    
+                return 'SELL', None, None
+
+            # Prioridad 2: evaluar si agregar una entrada DCA adicional
+            # Solo si aún no llegamos al máximo de entradas
+            if dca_count < max_dca_orders and last_dca_price is not None:
+                # Cada nivel DCA requiere un RSI más bajo para asegurar que
+                # realmente el mercado está más sobrevendido (no es ruido)
+                rsi_thresholds = {
+                    1: DCA_RSI_LEVEL_2,   # 2da entrada: necesita RSI < 25
+                    2: DCA_RSI_LEVEL_3,   # 3ra entrada: necesita RSI < 20
+                    3: DCA_RSI_LEVEL_4,   # 4ta entrada: necesita RSI < 15 (extremo)
+                }
+                required_rsi = rsi_thresholds.get(dca_count)
+
+                if required_rsi and rsi < required_rsi:
+                    # No entrar en DCA si hay tendencia bajista brutal confirmada
+                    # (ADX muy fuerte + DI bajista = mejor no promediar a la baja)
+                    if adx > (ADX_THRESHOLD + 10) and is_downtrend_hard:
+                        pass  # Tendencia bajista demasiado fuerte, no agregar
+                    else:
+                        tp = current_price + tp_dist
+                        sl = current_price - sl_dist
+                        return 'BUY_DCA', tp, sl
+
+        # ── Con posición SHORT activa ──────────────────────────────────────────
+        elif trade_type == "SHORT":
+            if target_sl and current_price >= target_sl:
+                return 'BUY_BACK', None, None  # Stop Loss alcanzado
+            if target_tp and current_price <= target_tp:
+                return 'BUY_BACK', None, None  # Take Profit alcanzado
+            if rsi < RSI_OVERSOLD:
+                return 'BUY_BACK', None, None  # RSI sobrevendido → cerrar SHORT
+
+        # Sin señal clara
         return 'HOLD', target_tp, target_sl

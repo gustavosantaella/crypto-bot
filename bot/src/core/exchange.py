@@ -2,14 +2,22 @@ import logging
 import time
 from binance.client import Client
 from src.config.settings import BINANCE_API_KEY, BINANCE_SECRET_KEY, IS_TESTNET
-from src.config.trading_params import LEVERAGE, MARGIN_TYPE
+from src.config.trading_params import LEVERAGE, MARGIN_TYPE, SYMBOL
+
+# Número de velas a solicitar al exchange.
+# Mínimo 250 para que la EMA200 tenga suficientes datos históricos.
+# Si es menor, los primeros valores del EMA serán incorrectos (NaN o distorsionados).
+KLINES_LIMIT = 250
 
 class ExchangeManager:
     def __init__(self):
         self.client = Client(BINANCE_API_KEY, BINANCE_SECRET_KEY, testnet=IS_TESTNET)
         self._sync_time()
-        self.set_leverage(LEVERAGE)
-        # self.set_margin_type(MARGIN_TYPE) # Comentado porque solo se puede cambiar si no hay posiciones
+        # Configurar apalancamiento al iniciar usando el símbolo del .env
+        self.set_leverage(LEVERAGE, symbol=SYMBOL)
+        # El tipo de margen solo se puede cambiar cuando NO hay posiciones abiertas.
+        # Descomentar la siguiente línea solo si necesitas cambiarlo manualmente:
+        # self.set_margin_type(MARGIN_TYPE)
 
     def _sync_time(self):
         try:
@@ -44,7 +52,12 @@ class ExchangeManager:
             logging.error(f"Error precio {symbol}: {e}")
             return None
 
-    def get_klines(self, symbol, interval='1m', limit=100):
+    def get_klines(self, symbol, interval='1m', limit=KLINES_LIMIT):
+        """
+        Obtiene las velas (candlesticks) del exchange.
+        Por defecto solicita KLINES_LIMIT=250 velas para garantizar
+        que indicadores como EMA200 tengan suficientes datos históricos.
+        """
         try:
             return self.client.futures_klines(symbol=symbol, interval=interval, limit=limit)
         except Exception as e:

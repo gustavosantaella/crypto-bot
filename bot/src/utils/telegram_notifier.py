@@ -29,9 +29,23 @@ class TelegramNotifier:
         msg += f"🔸 *Símbolo:* {symbol}\n"
         msg += f"🔸 *Tipo:* {side} (Futures)\n"
         msg += f"🔸 *Precio:* ${price:.4f}\n"
-        msg += f"🔸 *Cantidad:* {qty}\n"
-        msg += f"🎯 *Take Profit:* ${tp:.4f}\n"
-        msg += f"🛑 *Stop Loss:* ${sl:.4f}"
+        if qty and qty > 0:
+            msg += f"🔸 *Cantidad:* {qty:.4f}\n"
+        tp_str = f"${tp:.4f}" if tp else "N/A"
+        sl_str = f"${sl:.4f}" if sl else "N/A"
+        msg += f"🎯 *Take Profit:* {tp_str}\n"
+        msg += f"🛑 *Stop Loss:* {sl_str}"
+        TelegramNotifier.send_message(msg)
+
+    @staticmethod
+    def notify_breakeven(symbol, price, new_sl, tp):
+        """Notifica cuando el Stop Loss se mueve al precio de entrada (breakeven)."""
+        msg = f"🛡️ *BREAKEVEN ACTIVADO*\n\n"
+        msg += f"🔸 *Símbolo:* {symbol}\n"
+        msg += f"🔸 *Precio actual:* ${price:.4f}\n"
+        msg += f"✅ *Nuevo SL (breakeven):* ${new_sl:.4f}\n"
+        msg += f"🎯 *TP objetivo:* ${tp:.4f}\n"
+        msg += f"\n_El peor resultado ahora es: empate 😐_"
         TelegramNotifier.send_message(msg)
 
     @staticmethod
