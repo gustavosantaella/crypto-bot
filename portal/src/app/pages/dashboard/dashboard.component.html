@@ -76,7 +76,7 @@
 
           <div class="info-row" style="margin-bottom: 1rem; padding: 0 0.5rem;">
             <span>AVG ENTRY</span>
-            <span class="val primary" style="font-size: 1rem;">${{ formatPrice(status.last_buy_price) }}</span>
+            <span class="val primary" style="font-size: 1rem;">{{ formatLevel(status.last_buy_price) !== '---' ? '$' + formatLevel(status.last_buy_price) : '---' }}</span>
           </div>
 
           <!-- DCA Entries Table -->
@@ -105,7 +105,7 @@
               </div>
               <!-- Fila total -->
               <div style="display: grid; grid-template-columns: 18px 1fr 1fr 1fr; padding: 0.4rem 0.6rem; background: rgba(0,210,255,0.04); border-top: 1px solid rgba(0,210,255,0.1);">
-                <span style="font-size: 0.6rem; color: var(--primary); font-weight: 800; grid-column: 1/3;">AVG ${{ formatPrice(status.last_buy_price) }}</span>
+                <span style="font-size: 0.6rem; color: var(--primary); font-weight: 800; grid-column: 1/3;">AVG {{ formatLevel(status.last_buy_price) !== '---' ? '$' + formatLevel(status.last_buy_price) : '---' }}</span>
                 <span style="font-size: 0.6rem; color: var(--text-muted); text-align: right;">total</span>
                 <span style="font-size: 0.72rem; font-weight: 800; text-align: right;"
                       [style.color]="unrealizedPnL !== null && unrealizedPnL >= 0 ? 'var(--success)' : 'var(--danger)'">
@@ -123,9 +123,9 @@
           <!-- TP Progress Bar -->
           <div *ngIf="status.target_take_profit" style="margin-bottom: 1rem;">
             <div style="display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--text-muted); margin-bottom: 0.3rem;">
-              <span>SL ${{ formatPrice(status.target_stop_loss) }}</span>
+              <span>SL {{ formatLevel(status.target_stop_loss) !== '---' ? '$' + formatLevel(status.target_stop_loss) : '---' }}</span>
               <span style="color: var(--success);">Progreso al TP</span>
-              <span>TP ${{ formatPrice(status.target_take_profit) }}</span>
+              <span>TP {{ formatLevel(status.target_take_profit) !== '---' ? '$' + formatLevel(status.target_take_profit) : '---' }}</span>
             </div>
             <div style="background: rgba(255,255,255,0.06); border-radius: 100px; height: 8px; overflow: hidden;">
               <div [style.width]="tpProgress + '%'" 
@@ -146,7 +146,9 @@
             <!-- TP Box -->
             <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 0.75rem; padding: 0.75rem; text-align: center;">
               <div style="font-size: 0.6rem; color: var(--success); font-weight: 800; margin-bottom: 0.25rem;">TARGET TP</div>
-              <div style="font-size: 0.95rem; font-weight: 700; color: var(--success);">${{ formatPrice(status.target_take_profit) }}</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--success);">
+                {{ formatLevel(status.target_take_profit) !== '---' ? '$' + formatLevel(status.target_take_profit) : '---' }}
+              </div>
               <div *ngIf="tpDistance" [style.color]="tpDistance.diff > 0 ? 'var(--text-muted)' : 'var(--success)'" style="font-size: 0.65rem; margin-top: 4px; font-weight: 600;">
                 {{ tpDistance.pct | number:'1.2-2' }}%
               </div>
@@ -156,7 +158,9 @@
               <div style="font-size: 0.6rem; color: var(--danger); font-weight: 800; margin-bottom: 0.25rem;">
                 {{ status.breakeven ? '🛡️ BREAKEVEN' : 'STOP LOSS' }}
               </div>
-              <div style="font-size: 0.95rem; font-weight: 700; color: var(--danger);">${{ formatPrice(status.target_stop_loss) }}</div>
+              <div style="font-size: 0.95rem; font-weight: 700; color: var(--danger);">
+                {{ formatLevel(status.target_stop_loss) !== '---' ? '$' + formatLevel(status.target_stop_loss) : '---' }}
+              </div>
               <div *ngIf="slDistance" style="font-size: 0.65rem; color: var(--text-muted); margin-top: 4px; font-weight: 600;">
                 {{ slDistance.pct | number:'1.2-2' }}%
               </div>

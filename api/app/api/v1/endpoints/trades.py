@@ -19,8 +19,7 @@ def get_trades(
     
     if status == 'cancelled':
         query = query.filter(Trade.message != None, Trade.message != "")
-    elif status == 'executed':
-        query = query.filter((Trade.message == None) | (Trade.message == ""))
+    
         
     if start_date and start_date.strip():
         query = query.filter(Trade.timestamp >= start_date)

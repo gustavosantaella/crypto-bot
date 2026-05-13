@@ -380,6 +380,25 @@ class BotEngine:
                 rsi = ind['rsi']
                 adx = ind['adx']
 
+                # ── 2b. Recalcular TP/SL si hay posicion abierta pero sin niveles ──
+                # Ocurre cuando el bot se reinicia con una posicion abierta y la DB
+                # no tenia los niveles guardados (posicion huerfana).
+                if self.has_position and self.avg_entry_price and (not self.target_tp or not self.target_sl):
+                    self._recalculate_sl_tp(atr)
+                    # Reponer las ordenes SL/TP en Binance
+                    self.exchange.cancel_all_orders(SYMBOL)
+                    self.exchange.set_sl_tp(
+                        SYMBOL, 'BUY' if self.trade_type == 'LONG' else 'SELL',
+                        self.target_sl, self.target_tp,
+                        self._total_quantity()
+                    )
+                    self._sync_db_status()
+                    logging.warning(
+                        f"[RECOVERY] TP/SL recalculados desde ATR | "
+                        f"Avg: {self.avg_entry_price:.4f} | "
+                        f"SL: {self.target_sl:.4f} | TP: {self.target_tp:.4f}"
+                    )
+
                 # ── 3. Trailing stop / Breakeven (antes de evaluar señal) ───────
                 # Si ya hay posición LONG y está en positivo, proteger ganancias
                 if self.has_position and self.trade_type == "LONG":

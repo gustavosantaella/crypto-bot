@@ -485,9 +485,20 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     })).filter(item => item.quantity > 0.0001);
   }
 
-  formatPrice(price: any): string { 
+  formatPrice(price: any): string {
     const p = parseFloat(price);
-    return isNaN(p) ? '0.0000' : p.toFixed(4); 
+    return isNaN(p) ? '0.0000' : p.toFixed(4);
+  }
+
+  /**
+   * Formatea un nivel de precio (TP/SL/avg).
+   * Devuelve '---' si el valor es nulo, 0 o NaN (significa que aun no fue calculado).
+   * Usar para TP, SL y precio promedio en el sidebar.
+   */
+  formatLevel(price: any): string {
+    const p = parseFloat(price);
+    if (isNaN(p) || p === 0) return '---';
+    return p.toFixed(4);
   }
 
   formatDate(dateStr: string): string {
