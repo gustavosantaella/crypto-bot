@@ -4,6 +4,11 @@ from dotenv import load_dotenv
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
 
+# ── Modo de Operación ─────────────────────────────────────────────────────────
+# CONSERVATIVE: Estrategia de bajo riesgo, menos operaciones pero más seguras.
+# SCALPING: Micro-ganancias frecuentes, más operaciones, objetivos cortos.
+BOT_MODE = os.getenv("BOT_MODE", "CONSERVATIVE").upper()
+
 # ── Par y temporalidad ────────────────────────────────────────────────────────
 # Par de criptomonedas a operar (ej: SOLUSDT, BTCUSDT)
 SYMBOL = os.getenv("SYMBOL", "SOLUSDT")
@@ -106,3 +111,19 @@ DCA_RSI_LEVEL_4 = float(os.getenv("DCA_RSI_LEVEL_4", 15))  # 4ta (solo si MAX_DC
 # Evita que el bot haga compras múltiples cuando el RSI oscila sin que el precio baje.
 # Ej: 0.02 = el precio debe haber caído al menos 2% desde la última compra DCA
 DCA_MIN_DROP_PCT = float(os.getenv("DCA_MIN_DROP_PCT", 0.02))
+
+# ── Ajustes Dinámicos por Modo (BOT_MODE) ─────────────────────────────────────
+if BOT_MODE == "SCALPING":
+    # Sobrescribir parámetros para modo Scalping (Micro-ganancias)
+    # Estos valores aseguran salidas rápidas y entradas más frecuentes.
+    RSI_OVERSOLD = 35.0          # Entra antes en sobreventa
+    ATR_TP_MULTIPLIER = 1.0      # Objetivo de ganancia corto (Micro-ganancia)
+    ATR_SL_MULTIPLIER = 1.2      # Stop Loss ajustado para proteger
+    DCA_MIN_DROP_PCT = 0.01      # DCA más cercano (1%)
+    DCA_RSI_LEVEL_2 = 30.0       # Niveles DCA más accesibles
+    DCA_RSI_LEVEL_3 = 25.0
+    DCA_RSI_LEVEL_4 = 20.0
+    
+    print(f"🚀 MODO DE OPERACIÓN: SCALPING (Micro-ganancias) activado.")
+else:
+    print(f"🛡️ MODO DE OPERACIÓN: CONSERVATIVE activado.")

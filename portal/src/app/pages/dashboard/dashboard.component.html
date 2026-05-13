@@ -431,52 +431,70 @@
     <div class="glass-card" (click)="$event.stopPropagation()" style="width: 90%; max-width: 800px; max-height: 85vh; overflow-y: auto; padding: 2.5rem; position: relative; border-color: rgba(255,255,255,0.1);">
       <button (click)="showDocs = false" style="position: absolute; top: 1.5rem; right: 1.5rem; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
       
-      <h2 class="gradient-text" style="margin: 0 0 2rem; font-size: 1.8rem; font-weight: 800;">Documentación del Bot (Estrategia DCA)</h2>
+      <h2 class="gradient-text" style="margin: 0 0 2rem; font-size: 1.8rem; font-weight: 800;">📖 Documentación del Bot</h2>
       
       <div style="display: grid; gap: 2rem;">
+
         <section>
           <h3 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(0, 210, 255, 0.2); padding-bottom: 0.25rem;">🤖 Estrategia Principal: DCA Conservador</h3>
           <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
-            El bot utiliza una estrategia de <b>Dollar Cost Averaging (DCA)</b>. No entra con todo el capital de golpe, sino que divide la entrada en varias partes (hasta 3). Si el precio va en contra, realiza compras adicionales a precios más bajos para <b>reducir el precio promedio de entrada</b>, haciendo más fácil salir con ganancias en un rebote.
+            El bot usa <b>Dollar Cost Averaging (DCA)</b>: divide las entradas en hasta 3 partes. Si el precio baja, compra más barato para reducir el precio promedio y salir con ganancia en el rebote. No usa todo el capital de golpe.
           </p>
         </section>
 
         <section>
-          <h3 style="color: var(--success); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(16, 185, 129, 0.2); padding-bottom: 0.25rem;">📊 Gestión de Órdenes SL/TP en Binance</h3>
+          <h3 style="color: var(--success); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(16, 185, 129, 0.2); padding-bottom: 0.25rem;">🧠 Adaptador Dinámico de Parámetros</h3>
           <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
-            En Binance Futures, todas las compras se acumulan en una <b>única posición</b>. Por lo tanto, el bot mantiene <b>un solo Stop Loss y un solo Take Profit</b> activos para toda la posición. Cada vez que el bot realiza una compra DCA, cancela las órdenes de protección viejas, recalcula el precio promedio y coloca un nuevo SL y TP que protegen el total de la posición.
+            El bot <b>no usa valores fijos</b>. Cada ciclo, analiza el estado del mercado (ADX) y ajusta automáticamente sus umbrales:
           </p>
+          <ul style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8; padding-left: 1.2rem; margin-top: 0.5rem;">
+            <li><b>ADX &lt; 20 (Lateral):</b> Sube el umbral RSI a +35, DCA más cercano → más oportunidades.</li>
+            <li><b>ADX 20–25 (Neutral):</b> Usa los valores base del archivo .env sin cambios.</li>
+            <li><b>ADX &gt; 25 (Tendencia):</b> Baja el RSI a -5 puntos, SL más amplio → más exigente y seguro.</li>
+          </ul>
+          <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; font-style: italic;">Puedes ver el modo activo en cada línea del log: <b>Mode: CONSERVATIVE/TRENDING | RSI_umbral: 25</b></p>
         </section>
 
         <section>
-          <h3 style="color: #f59e0b; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 0.25rem;">📈 Indicadores Técnicos Utilizados</h3>
-          <ul style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; padding-left: 1.2rem;">
-            <li><b>RSI (Relative Strength Index):</b> Mide la sobreventa (&lt; 30) y sobrecompra (&gt; 68).</li>
-            <li><b>EMA 200 (Exponential Moving Average):</b> Filtro de tendencia macro. Solo se permiten LONGs si el precio está claramente sobre la EMA200 (mercado alcista).</li>
-            <li><b>ADX (Average Directional Index):</b> Mide la fuerza de la tendencia. Evita entrar en contra de tendencias bajistas fuertes.</li>
-            <li><b>ATR (Average True Range):</b> Mide la volatilidad. Se usa para calcular las distancias dinámicas de SL y TP.</li>
+          <h3 style="color: #f59e0b; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(245, 158, 11, 0.2); padding-bottom: 0.25rem;">🔀 Modos de Operación (BOT_MODE)</h3>
+          <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">Configurable en el archivo <code style="background: rgba(255,255,255,0.06); padding: 0.1rem 0.4rem; border-radius: 4px;">bot/.env</code> → <code style="background: rgba(255,255,255,0.06); padding: 0.1rem 0.4rem; border-radius: 4px;">BOT_MODE=</code></p>
+          <ul style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8; padding-left: 1.2rem; margin-top: 0.5rem;">
+            <li><b>CONSERVATIVE (por defecto):</b> Pocas operaciones, ganancias mayores, bajo riesgo. Los parámetros se ajustan dinámicamente con el ADX.</li>
+            <li><b>SCALPING:</b> Muchas operaciones, ganancias pequeñas y frecuentes. RSI más alto, TP más cercano. Más actividad, más comisiones.</li>
           </ul>
         </section>
 
         <section>
-          <h3 style="color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 0.25rem;">⚙️ Valores de Configuración Actuales (SOLUSDT)</h3>
-          <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.85rem; color: var(--text-muted);">
-            <div>• Temporalidad: 1 Hora</div>
-            <div>• Apalancamiento: 3x</div>
-            <div>• RSI de Entrada: &lt; 30</div>
-            <div>• Distancia Mínima DCA: 2.5%</div>
-            <div>• Niveles DCA RSI: #2 (&lt; 25), #3 (&lt; 20)</div>
-            <div>• Multiplicadores ATR: SL (2.5x), TP (3.5x)</div>
-            <div>• Filtro EMA200: Precio debe estar 0.3% sobre la EMA para LONG.</div>
+          <h3 style="color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 0.25rem;">📈 Indicadores Técnicos</h3>
+          <ul style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8; padding-left: 1.2rem;">
+            <li><b>RSI:</b> Mide sobreventa (&lt; 30) y sobrecompra (&gt; 68). Umbral dinámico según ADX.</li>
+            <li><b>EMA 200:</b> Solo LONG si el precio está &gt; 0.3% sobre la EMA200 (contexto alcista).</li>
+            <li><b>ADX:</b> Fuerza de la tendencia. Controla qué tan agresivo o conservador es el bot.</li>
+            <li><b>ATR:</b> Volatilidad. Calcula SL y TP dinámicamente. ATR alto = SL/TP más amplios.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3 style="color: #06b6d4; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(6, 182, 212, 0.2); padding-bottom: 0.25rem;">⚙️ Configuración Actual (SOLUSDT)</h3>
+          <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.83rem; color: var(--text-muted); display: grid; gap: 0.3rem;">
+            <div>• Temporalidad: <b>1 Hora</b></div>
+            <div>• Apalancamiento: <b>3x</b></div>
+            <div>• RSI Base de Entrada: <b>&lt; 30</b> (se ajusta dinámicamente por ADX)</div>
+            <div>• Distancia Mínima DCA: <b>2.5%</b> (se ajusta dinámicamente)</div>
+            <div>• Niveles DCA RSI: <b>#2 &lt; 25 | #3 &lt; 20</b></div>
+            <div>• Multiplicadores ATR: <b>SL 2.5x | TP 3.5x</b> (se ajustan dinámicamente)</div>
+            <div>• Filtro EMA200: <b>Precio debe estar 0.3% sobre la EMA</b></div>
+            <div>• Gestión SL/TP en Binance: <b>Un solo par por posición (se reemplaza en cada DCA)</b></div>
           </div>
         </section>
 
         <section>
-          <h3 style="color: #ef4444; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 0.25rem;">💡 Notas de Seguridad</h3>
+          <h3 style="color: #ef4444; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding-bottom: 0.25rem;">🛡️ Seguridad y Gestión de Riesgo</h3>
           <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
-            El bot opera con un Stop Loss duro para evitar liquidaciones. Aunque el DCA promedia el precio, el SL sigue activo y se activará si el mercado se mueve fuertemente en contra sin dar rebote. Respeta siempre el tamaño de posición recomendado.
+            El bot tiene <b>Stop Loss duro</b> siempre activo. Si el mercado cae sin rebote, cierra automáticamente con pérdida controlada. El sistema de <b>limpieza de órdenes duplicadas</b> garantiza que nunca haya órdenes fantasma activas en Binance de operaciones anteriores.
           </p>
         </section>
+
       </div>
 
       <div style="margin-top: 2.5rem; text-align: center;">

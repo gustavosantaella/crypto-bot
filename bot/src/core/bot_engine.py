@@ -2,8 +2,9 @@ import time
 import logging
 from src.core.exchange import ExchangeManager
 from src.strategies.rsi_strategy import RSIStrategy
+from src.strategies.parameter_adapter import get_dynamic_params
 from src.config.trading_params import (
-    SYMBOL, CHECK_INTERVAL, LEVERAGE, TIMEFRAME,
+    SYMBOL, CHECK_INTERVAL, LEVERAGE, TIMEFRAME, BOT_MODE,
     DCA_ENABLED, MAX_DCA_ORDERS, DCA_ENTRY_SIZE_PCT, DCA_MIN_DROP_PCT,
     ATR_SL_MULTIPLIER, ATR_TP_MULTIPLIER,
     USE_TRAILING_STOP, TRAILING_TRIGGER_ATR,
@@ -175,18 +176,17 @@ class BotEngine:
         """Suma las cantidades de todas las entradas DCA activas."""
         return sum(e["quantity"] for e in self.dca_entries)
 
-    def _recalculate_sl_tp(self, atr):
+    def _recalculate_sl_tp(self, atr, sl_mult=None, tp_mult=None):
         """
         Recalcula SL y TP desde el precio PROMEDIO usando multiplicadores asimétricos.
-        Siempre se llama después de añadir una nueva entrada DCA.
-
-        SL = avg_price - (ATR × ATR_SL_MULTIPLIER)  ← menor distancia (riesgo controlado)
-        TP = avg_price + (ATR × ATR_TP_MULTIPLIER)  ← mayor distancia (beneficio superior)
+        Acepta multiplicadores dinámicos opcionales; si no se pasan, usa los del .env.
         """
         if not self.avg_entry_price:
             return
-        self.target_sl = self.avg_entry_price - (atr * ATR_SL_MULTIPLIER)
-        self.target_tp = self.avg_entry_price + (atr * ATR_TP_MULTIPLIER)
+        effective_sl = sl_mult if sl_mult is not None else ATR_SL_MULTIPLIER
+        effective_tp = tp_mult if tp_mult is not None else ATR_TP_MULTIPLIER
+        self.target_sl = self.avg_entry_price - (atr * effective_sl)
+        self.target_tp = self.avg_entry_price + (atr * effective_tp)
 
     # ─────────────────────────────────────────────────────────────────────────
     # Trailing Stop / Breakeven
@@ -394,10 +394,10 @@ class BotEngine:
         init_db()
 
         logging.info("==========================================================")
-        logging.info("  Bot FUTUROS - Estrategia DCA Conservadora")
+        logging.info(f"  Bot FUTUROS - Estrategia DCA | Modo: {BOT_MODE}")
         logging.info(f"  DCA: {'Activo' if DCA_ENABLED else 'Inactivo'} | Max entradas: {MAX_DCA_ORDERS}")
         logging.info(f"  Tamano por entrada: {DCA_ENTRY_SIZE_PCT*100:.0f}% | Expo maxima: {DCA_ENTRY_SIZE_PCT*MAX_DCA_ORDERS*100:.0f}%")
-        logging.info(f"  R/R: {ATR_TP_MULTIPLIER}x TP / {ATR_SL_MULTIPLIER}x SL = {ATR_TP_MULTIPLIER/ATR_SL_MULTIPLIER:.1f}x ratio")
+        logging.info(f"  R/R base: {ATR_TP_MULTIPLIER}x TP / {ATR_SL_MULTIPLIER}x SL (se ajusta dinamicamente)")
         logging.info(f"  Trailing stop: {'Activo' if USE_TRAILING_STOP else 'Inactivo'}")
         logging.info("==========================================================")
 
@@ -419,11 +419,14 @@ class BotEngine:
                 rsi = ind['rsi']
                 adx = ind['adx']
 
-                # ── 2b. Recalcular TP/SL si hay posicion abierta pero sin niveles ──
+                # ── 2b. Calcular parámetros dinámicos para este ciclo ───────────
+                dyn = get_dynamic_params(ind)
+
+                # ── 2c. Recalcular TP/SL si hay posicion abierta pero sin niveles ──
                 # Ocurre cuando el bot se reinicia con una posicion abierta y la DB
                 # no tenia los niveles guardados (posicion huerfana).
                 if self.has_position and self.avg_entry_price and (not self.target_tp or not self.target_sl):
-                    self._recalculate_sl_tp(atr)
+                    self._recalculate_sl_tp(atr, dyn['atr_sl_mult'], dyn['atr_tp_mult'])
                     # Reponer las ordenes SL/TP en Binance
                     self.exchange.cancel_all_orders(SYMBOL)
                     self.exchange.set_sl_tp(
@@ -456,7 +459,14 @@ class BotEngine:
                     trade_type=self.trade_type,
                     dca_count=len(self.dca_entries),
                     last_dca_price=last_dca_price,
-                    max_dca_orders=MAX_DCA_ORDERS if DCA_ENABLED else 1
+                    max_dca_orders=MAX_DCA_ORDERS if DCA_ENABLED else 1,
+                    # Pasar parámetros dinámicos calculados en este ciclo
+                    dyn_rsi_oversold=dyn['rsi_oversold'],
+                    dyn_dca_rsi_2=dyn['dca_rsi_level_2'],
+                    dyn_dca_rsi_3=dyn['dca_rsi_level_3'],
+                    dyn_dca_rsi_4=dyn['dca_rsi_level_4'],
+                    dyn_atr_sl_mult=dyn['atr_sl_mult'],
+                    dyn_atr_tp_mult=dyn['atr_tp_mult'],
                 )
 
                 # -- 5. Persistir precio + indicadores en DB cada ciclo --
@@ -468,7 +478,8 @@ class BotEngine:
                     f"ADX: {adx:.1f} | EMA200: {ind['ema_slow']:.2f} | "
                     f"Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
-                    f"Breakeven: {'ON' if self.breakeven_activated else 'OFF'}"
+                    f"Breakeven: {'ON' if self.breakeven_activated else 'OFF'} | "
+                    f"Mode: {dyn['mode_active']} | RSI_umbral: {dyn['rsi_oversold']:.0f}"
                 )
                 notify_price_update(SYMBOL, price, ind)
 

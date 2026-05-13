@@ -6,6 +6,7 @@ from src.config.trading_params import (
     EMA_FAST_PERIOD, EMA_SLOW_PERIOD,
     DCA_RSI_LEVEL_2, DCA_RSI_LEVEL_3, DCA_RSI_LEVEL_4
 )
+# Defaults from config — can be overridden per-cycle by parameter_adapter
 
 
 class RSIStrategy:
@@ -108,7 +109,14 @@ class RSIStrategy:
     def get_signal(ind, current_price, has_position,
                    target_tp=None, target_sl=None,
                    trade_type="LONG",
-                   dca_count=0, last_dca_price=None, max_dca_orders=3):
+                   dca_count=0, last_dca_price=None, max_dca_orders=3,
+                   # Parámetros dinámicos — si no se pasan, se usan los valores del .env
+                   dyn_rsi_oversold=None,
+                   dyn_dca_rsi_2=None,
+                   dyn_dca_rsi_3=None,
+                   dyn_dca_rsi_4=None,
+                   dyn_atr_sl_mult=None,
+                   dyn_atr_tp_mult=None):
         """
         Genera la señal de trading con filtros múltiples para máxima calidad.
 
@@ -137,10 +145,17 @@ class RSIStrategy:
         ema_slow = ind['ema_slow']
         volume_ratio = ind['volume_ratio']
 
-        # Distancias ASIMÉTRICAS: SL pequeño, TP grande → expectativa positiva
-        # Con SL=1.5x y TP=2.5x → R/R = 1.67 → rentable ganando 38% de trades
-        sl_dist = atr * ATR_SL_MULTIPLIER
-        tp_dist = atr * ATR_TP_MULTIPLIER
+        # Usar parámetros dinámicos si se pasaron, si no usar los del .env como fallback
+        effective_rsi_oversold = dyn_rsi_oversold if dyn_rsi_oversold is not None else RSI_OVERSOLD
+        effective_sl_mult      = dyn_atr_sl_mult  if dyn_atr_sl_mult  is not None else ATR_SL_MULTIPLIER
+        effective_tp_mult      = dyn_atr_tp_mult  if dyn_atr_tp_mult  is not None else ATR_TP_MULTIPLIER
+        effective_dca_rsi_2    = dyn_dca_rsi_2    if dyn_dca_rsi_2    is not None else DCA_RSI_LEVEL_2
+        effective_dca_rsi_3    = dyn_dca_rsi_3    if dyn_dca_rsi_3    is not None else DCA_RSI_LEVEL_3
+        effective_dca_rsi_4    = dyn_dca_rsi_4    if dyn_dca_rsi_4    is not None else DCA_RSI_LEVEL_4
+
+        # Distancias ASIMÉTRICAS calculadas con multiplicadores efectivos (dinámicos o base)
+        sl_dist = atr * effective_sl_mult
+        tp_dist = atr * effective_tp_mult
 
         # Banderas de tendencia
         is_strong_trend   = adx > ADX_THRESHOLD         # Hay tendencia fuerte
@@ -164,13 +179,12 @@ class RSIStrategy:
 
             # ── Señal LONG ────────────────────────────────────────────────────
             # Condiciones de entrada (todas deben cumplirse para ser conservador):
-            rsi_oversold    = rsi < RSI_OVERSOLD        # Cond 1: RSI sobrevendido
-            trend_ok        = not is_downtrend_hard      # Cond 2: No en tendencia bajista fuerte
-            macro_trend_ok  = price_above_ema_slow       # Cond 3: Precio sobre EMA lenta
+            rsi_oversold    = rsi < effective_rsi_oversold  # Cond 1: RSI sobrevendido (dinámico)
+            trend_ok        = not is_downtrend_hard          # Cond 2: No en tendencia bajista fuerte
+            macro_trend_ok  = price_above_ema_slow           # Cond 3: Precio sobre EMA lenta
 
             if rsi_oversold and trend_ok and macro_trend_ok:
                 # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista
-                # Si además el RSI gira y el volumen confirma, es señal de máxima calidad
                 tp = current_price + tp_dist
                 sl = current_price - sl_dist
                 return 'BUY', tp, sl
@@ -205,12 +219,11 @@ class RSIStrategy:
             # Prioridad 2: evaluar si agregar una entrada DCA adicional
             # Solo si aún no llegamos al máximo de entradas
             if dca_count < max_dca_orders and last_dca_price is not None:
-                # Cada nivel DCA requiere un RSI más bajo para asegurar que
-                # realmente el mercado está más sobrevendido (no es ruido)
+                # Cada nivel DCA requiere un RSI más bajo (umbrales dinámicos o del .env)
                 rsi_thresholds = {
-                    1: DCA_RSI_LEVEL_2,   # 2da entrada: necesita RSI < 25
-                    2: DCA_RSI_LEVEL_3,   # 3ra entrada: necesita RSI < 20
-                    3: DCA_RSI_LEVEL_4,   # 4ta entrada: necesita RSI < 15 (extremo)
+                    1: effective_dca_rsi_2,
+                    2: effective_dca_rsi_3,
+                    3: effective_dca_rsi_4,
                 }
                 required_rsi = rsi_thresholds.get(dca_count)
 
