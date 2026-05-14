@@ -105,6 +105,7 @@ declare var Chart: any;
       <div *ngIf="aiPrediction" style="text-align:right;">
         <div style="font-size:1.2rem;font-weight:900;color:#fff;">{{ aiPrediction }}</div>
         <div style="font-size:.6rem;color:var(--text-muted);">Precisión: {{ aiAccuracy | percent:'1.1-1' }}</div>
+        <div *ngIf="aiRecommendedRsi" style="font-size:.6rem;color:#fbbf24;font-weight:700;">RSI Sugerido: {{ aiRecommendedRsi }}</div>
       </div>
       <button (click)="consultarIA()" class="btn-primary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;" [disabled]="aiLoading">
         {{ aiLoading ? 'Procesando...' : 'Consultar IA' }}
@@ -144,6 +145,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   live: any    = null;
   aiPrediction: string = '';
   aiAccuracy: number = 0;
+  aiRecommendedRsi: number | null = null;
   aiLoading: boolean = false;
 
   get activeSymbol(): string {
@@ -184,6 +186,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
       next: (res: any) => {
         this.aiPrediction = res.prediction;
         this.aiAccuracy = res.model_accuracy;
+        this.aiRecommendedRsi = res.recommended_rsi;
         this.aiLoading = false;
         this.cdr.detectChanges();
       },
@@ -218,14 +221,24 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get currentRsiThreshold(): number {
-    const baseRsi = 65; // User configured base for BTC
+    const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
     const adx = parseFloat(this.live?.adx) || 0;
     if (adx >= 25) {
       return Math.max(baseRsi - 5, 20); // Trending market: more strict
     } else if (adx < 20) {
-      return Math.min(baseRsi + 5, 80); // Lateral market: more permissive
+      return Math.min(baseRsi + 5, 40); // Lateral market: matches Python clamping
     }
     return baseRsi; // Neutral market
+  }
+
+  getHistoricalRsiThreshold(adxValue: number): number {
+    const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
+    if (adxValue >= 25) {
+      return Math.max(baseRsi - 5, 20);
+    } else if (adxValue < 20) {
+      return Math.min(baseRsi + 5, 40);
+    }
+    return baseRsi;
   }
 
   get conditions(): { label: string; detail: string; ok: boolean }[] {
@@ -234,11 +247,15 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const price   = parseFloat(this.live?.price)         || 0;
     const emaSlow = parseFloat(this.live?.ema_slow)      || 0;
     const vol     = parseFloat(this.live?.volume_ratio)  || 0;
+    const plusDi  = parseFloat(this.live?.plus_di)       || 0;
+    const minusDi = parseFloat(this.live?.minus_di)      || 0;
+
+    const isDowntrendHard = adx > 25 && minusDi >= plusDi;
 
     return [
       { label: 'RSI Sobrevendido',     detail: 'RSI '      + rsi.toFixed(1)     + ' <= ' + this.currentRsiThreshold,                                           ok: rsi <= this.currentRsiThreshold },
-      { label: 'Contexto Alcista',     detail: 'Precio $'  + price.toFixed(2)   + ' > EMA200 $' + emaSlow.toFixed(2),                ok: price > emaSlow },
-      { label: 'Sin Tendencia Bajista',detail: 'ADX '      + adx.toFixed(1)     + ' - no caida fuerte',                               ok: adx < 35 },
+      { label: 'Contexto Alcista',     detail: 'Precio $'  + price.toFixed(2)   + ' > EMA200+0.3% $' + (emaSlow * 1.003).toFixed(2),                ok: price > (emaSlow * 1.003) },
+      { label: 'Sin Tendencia Bajista',detail: isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte',                               ok: !isDowntrendHard },
       { label: 'Volumen Confirmado',   detail: vol.toFixed(2) + 'x del promedio >= 1.0x',                                              ok: vol >= 1.0 }
     ];
   }
@@ -268,7 +285,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
             borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, yAxisID: 'yPrice' },
           { type: 'line', label: 'RSI', data: this.logs.map(l => parseFloat(l.rsi)),
             borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, yAxisID: 'yRsi' },
-          { type: 'line', label: 'Umbral RSI', data: this.logs.map(() => this.currentRsiThreshold),
+          { type: 'line', label: 'Umbral RSI', data: this.logs.map(l => this.getHistoricalRsiThreshold(parseFloat(l.adx||0))),
             borderColor: 'rgba(16,185,129,0.5)', borderDash: [4, 4], borderWidth: 1.5,
             pointRadius: 0, fill: false, yAxisID: 'yRsi' },
         ]

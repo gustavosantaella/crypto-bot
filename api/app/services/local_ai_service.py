@@ -94,6 +94,20 @@ class LocalAIService:
         # Votación
         prediction = neighbors['label'].mode().values[0]
         
+        # Calcular RSI recomendado basado en los vecinos que tuvieron éxito (label == 1)
+        successful_neighbors = neighbors[neighbors['label'] == 1]
+        if not successful_neighbors.empty:
+            recommended_rsi = successful_neighbors['rsi'].mean()
+        else:
+            # Si no hay ganadores entre los vecinos más cercanos, buscamos en todo el train_df
+            # los registros donde label == 1 y tomamos el promedio de los más cercanos
+            all_successful = train_df[train_df['label'] == 1]
+            if not all_successful.empty:
+                recommended_rsi = all_successful.sort_values(by='distance').head(k_neighbors)['rsi'].mean()
+            else:
+                # Si de plano no hay ningún registro con éxito, usamos el RSI promedio de los vecinos
+                recommended_rsi = neighbors['rsi'].mean()
+        
         # Calcular precisión en el test set para validar el modelo
         test_predictions = []
         for idx, test_row in test_df.iterrows():
@@ -127,5 +141,6 @@ class LocalAIService:
                 "adx": float(last_test_point['adx']),
                 "volume_ratio": float(last_test_point['volume_ratio'])
             },
+            "recommended_rsi": float(round(recommended_rsi, 2)) if recommended_rsi else None,
             "neighbors_votes": neighbors['label'].value_counts().to_dict()
         }

@@ -161,6 +161,7 @@ class AITrainer:
             f"Precisión: {self.accuracy:.1%} | "
             f"Precio: ${state.get('price', 0):.2f} | "
             f"RSI: {state.get('rsi', 0):.1f} | "
+            f"RSI Sugerido: {primary.get('recommended_rsi', 'N/A')} | "
             f"ADX: {state.get('adx', 0):.1f} | "
             f"Vol: {state.get('volume_ratio', 0):.2f}x | "
             f"Consenso: {votes} | "
