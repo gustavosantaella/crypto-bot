@@ -1,5 +1,16 @@
 import time
 import logging
+import sys
+import os
+
+env_file = ".env" # Default
+for arg in sys.argv:
+    if arg.startswith("--env="):
+        env = arg.split("=")[1]
+        env_file = f"environments/.{env}.env"
+        break
+os.environ["ENV_FILE"] = env_file
+
 from src.core.bot_engine import BotEngine
 from src.utils.logger import setup_logger
 

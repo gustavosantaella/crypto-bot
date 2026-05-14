@@ -99,7 +99,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
     this.aiAnalysis = '';
 
     const aiRequest = {
-      symbol: this.status.symbol || 'SOLUSDT',
+      symbol: this.activeSymbol,
       price: this.priceLogs[0].price,
       rsi: this.priceLogs[0].rsi,
       tp: this.status.target_take_profit || 0,
@@ -126,6 +126,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   get currentPrice(): number {
     return this.priceLogs[0]?.price || 0;
+  }
+
+  get activeSymbol(): string {
+    return this.priceLogs[0]?.symbol || 'CRYPTO';
   }
 
   // PnL no realizado total: suma de (precio_actual - precio_entrada) * cantidad de cada entrada DCA

@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 
 # Cargar variables de entorno desde el archivo .env
-load_dotenv()
+env_file = os.getenv("ENV_FILE", ".env")
+load_dotenv(env_file)
 
 # ── Modo de Operación ─────────────────────────────────────────────────────────
 # CONSERVATIVE: Estrategia de bajo riesgo, menos operaciones pero más seguras.

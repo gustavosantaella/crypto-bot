@@ -15,7 +15,7 @@ declare var Chart: any;
   <header class="page-header">
     <div class="header-brand">
       <h1 class="gradient-text">Performance <span style="font-weight:300;opacity:.8">Analytics</span></h1>
-      <p>Historial de rendimiento del bot — SOL/USDT Futures</p>
+      <p>Historial de rendimiento del bot — {{ activeSymbol }} Futures</p>
     </div>
     <div class="header-actions">
       <button (click)="go('/')" class="btn-secondary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;">← Dashboard</button>
@@ -139,6 +139,11 @@ export class PerformanceComponent implements OnInit, OnDestroy, AfterViewInit {
   selectedDays = 30;
   pnlData: any[] = [];
   rsiData: any[] = [];
+  botStatus: any = null;
+
+  get activeSymbol(): string {
+    return this.botStatus?.symbol || 'CRYPTO';
+  }
 
   private pnlChart: any;
   private donutChart: any;
@@ -163,6 +168,7 @@ export class PerformanceComponent implements OnInit, OnDestroy, AfterViewInit {
   fetchAll() {
     this.api.getStatsSummary().subscribe({ next: d => { this.stats = d; this.cdr.detectChanges(); this.buildDonut(); } });
     this.api.getHealth().subscribe({ next: d => { this.health = d; this.cdr.detectChanges(); } });
+    this.api.getBotStatus().subscribe({ next: d => { this.botStatus = d; this.cdr.detectChanges(); } });
     this.loadPnL(this.selectedDays);
     this.api.getRsiDistribution().subscribe({ next: d => { this.rsiData = d.buckets || []; this.buildRsiChart(); } });
   }

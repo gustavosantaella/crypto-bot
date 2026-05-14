@@ -15,7 +15,8 @@ except ImportError:
             # Fallback final si todo falla (poco probable)
             from pydantic import BaseModel as BaseSettings
 
-load_dotenv()
+env_file = os.getenv("ENV_FILE", ".env")
+load_dotenv(env_file)
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Crypto Bot API"

@@ -15,7 +15,7 @@ declare var Chart: any;
   <header class="page-header">
     <div class="header-brand">
       <h1 class="gradient-text">Signal <span style="font-weight:300;opacity:.8">Monitor</span></h1>
-      <p>Historial de indicadores tecnicos en tiempo real - SOL/USDT</p>
+      <p>Historial de indicadores tecnicos en tiempo real - {{ activeSymbol }}</p>
     </div>
     <div class="header-actions">
       <button (click)="go('/')" class="btn-secondary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;">Dashboard</button>
@@ -119,7 +119,7 @@ declare var Chart: any;
       <div style="display:flex;gap:.75rem;font-size:.65rem;font-weight:700;">
         <span style="color:var(--primary);">* Precio</span>
         <span style="color:#fbbf24;">* RSI</span>
-        <span style="color:rgba(16,185,129,0.7);">--- RSI 35 (entrada)</span>
+        <span style="color:rgba(16,185,129,0.7);">--- RSI {{ currentRsiThreshold }} (entrada)</span>
       </div>
     </div>
     <div style="height:320px;position:relative;"><canvas id="signalChart"></canvas></div>
@@ -145,6 +145,10 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   aiPrediction: string = '';
   aiAccuracy: number = 0;
   aiLoading: boolean = false;
+
+  get activeSymbol(): string {
+    return this.live?.symbol || 'CRYPTO';
+  }
 
   private signalChart: any;
   private adxChart: any;
@@ -213,6 +217,17 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     return p > e ? 'var(--success)' : 'var(--danger)';
   }
 
+  get currentRsiThreshold(): number {
+    const baseRsi = 65; // User configured base for BTC
+    const adx = parseFloat(this.live?.adx) || 0;
+    if (adx >= 25) {
+      return Math.max(baseRsi - 5, 20); // Trending market: more strict
+    } else if (adx < 20) {
+      return Math.min(baseRsi + 5, 80); // Lateral market: more permissive
+    }
+    return baseRsi; // Neutral market
+  }
+
   get conditions(): { label: string; detail: string; ok: boolean }[] {
     const rsi     = parseFloat(this.live?.rsi)          || 50;
     const adx     = parseFloat(this.live?.adx)          || 0;
@@ -221,7 +236,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const vol     = parseFloat(this.live?.volume_ratio)  || 0;
 
     return [
-      { label: 'RSI Sobrevendido',     detail: 'RSI '      + rsi.toFixed(1)     + ' <= 35',                                           ok: rsi <= 35 },
+      { label: 'RSI Sobrevendido',     detail: 'RSI '      + rsi.toFixed(1)     + ' <= ' + this.currentRsiThreshold,                                           ok: rsi <= this.currentRsiThreshold },
       { label: 'Contexto Alcista',     detail: 'Precio $'  + price.toFixed(2)   + ' > EMA200 $' + emaSlow.toFixed(2),                ok: price > emaSlow },
       { label: 'Sin Tendencia Bajista',detail: 'ADX '      + adx.toFixed(1)     + ' - no caida fuerte',                               ok: adx < 35 },
       { label: 'Volumen Confirmado',   detail: vol.toFixed(2) + 'x del promedio >= 1.0x',                                              ok: vol >= 1.0 }
@@ -253,7 +268,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
             borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, yAxisID: 'yPrice' },
           { type: 'line', label: 'RSI', data: this.logs.map(l => parseFloat(l.rsi)),
             borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, yAxisID: 'yRsi' },
-          { type: 'line', label: 'RSI 35', data: this.logs.map(() => 35),
+          { type: 'line', label: 'Umbral RSI', data: this.logs.map(() => this.currentRsiThreshold),
             borderColor: 'rgba(16,185,129,0.5)', borderDash: [4, 4], borderWidth: 1.5,
             pointRadius: 0, fill: false, yAxisID: 'yRsi' },
         ]
