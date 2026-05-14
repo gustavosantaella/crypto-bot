@@ -106,7 +106,9 @@ class TelegramBot:
                 [{"text": "🆔 Mi ID"}, {"text": "❓ Ayuda"}]
             ],
             "resize_keyboard": True,
-            "one_time_keyboard": False
+            "one_time_keyboard": False,
+            "is_persistent": True,
+            "input_field_placeholder": "⚠️ Solo consulta. Usa los botones."
         }
 
         payload = {
