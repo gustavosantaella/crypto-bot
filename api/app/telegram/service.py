@@ -218,6 +218,42 @@ class TelegramBot:
                     f"💵 *Precio:* `${float(last_price.price):.2f}`\n"
                     f"⚡️ *RSI:* `{float(last_price.rsi):.1f}`\n"
                 )
+                
+                if not status.has_position:
+                    rsi = float(last_price.rsi)
+                    price = float(last_price.price)
+                    ema_slow = float(last_price.ema_slow) if last_price.ema_slow else 0
+                    adx = float(last_price.adx) if last_price.adx else 0
+                    
+                    msg += f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
+                    msg += f"🔍 *Condiciones para Entrar:*\n"
+                    
+                    conditions_met = True
+                    
+                    # Check RSI
+                    if rsi >= 30:
+                        msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < 30)\n"
+                        conditions_met = False
+                    else:
+                        msg += f"✅ *RSI:* `{rsi:.1f}` (< 30)\n"
+                        
+                    # Check EMA200
+                    if ema_slow > 0:
+                        req_price = ema_slow * 1.003
+                        if price <= req_price:
+                            msg += f"❌ *Precio:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
+                            conditions_met = False
+                        else:
+                            msg += f"✅ *Precio:* `${price:.2f}` (> `${req_price:.2f}`)\n"
+                    
+                    # Check ADX
+                    if adx > 25:
+                        msg += f"⚠️ *ADX:* `{adx:.1f}` (Tendencia fuerte, riesgo)\n"
+                    else:
+                        msg += f"✅ *ADX:* `{adx:.1f}` (< 25)\n"
+
+                    if conditions_met:
+                        msg += f"⏳ *Todo listo. Esperando giro de RSI o cierre de vela.*\n"
 
             self.send_message(chat_id, msg)
         except Exception as e:
