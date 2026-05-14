@@ -168,27 +168,31 @@ class TelegramNotifier:
                     msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
                     conditions_count += 1
                 else:
-                    msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser > {umbral_short:.0f})\n"
+                    falta = umbral_short - rsi
+                    msg += f"❌ *RSI:* `{rsi:.1f}` (Falta {falta:.1f} para > {umbral_short:.0f})\n"
             else:
                 if rsi < umbral:
                     msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
                     conditions_count += 1
                 else:
-                    msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f})\n"
+                    falta = rsi - umbral
+                    msg += f"❌ *RSI:* `{rsi:.1f}` (Falta {falta:.1f} para < {umbral:.0f})\n"
                     
             # 2. Check Contexto (EMA200)
             if ema200 > 0:
                 if looking_for_short:
                     req_price = ema200 * 0.997
                     if price >= req_price:
-                        msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser < `${req_price:.2f}` [EMA200-0.3%])\n"
+                        falta = price - req_price
+                        msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para < `${req_price:.2f}` [EMA200-0.3%])\n"
                     else:
                         msg += f"✅ *Contexto:* Bajista (`${price:.2f}` < `${req_price:.2f}`)\n"
                         conditions_count += 1
                 else:
                     req_price = ema200 * 1.003
                     if price <= req_price:
-                        msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
+                        falta = req_price - price
+                        msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` [EMA200+0.3%])\n"
                     else:
                         msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
                         conditions_count += 1
@@ -214,11 +218,11 @@ class TelegramNotifier:
 
             # 4. Check Volumen Confirmado
             if vol < 1.0:
-                msg += f"❌ *Volumen:* `{vol:.2f}x` (Debe ser >= 1.0x)\n"
+                falta = 1.0 - vol
+                msg += f"❌ *Volumen:* `{vol:.2f}x` (Falta {falta:.2f}x para >= 1.0x)\n"
             else:
                 msg += f"✅ *Volumen:* `{vol:.2f}x` (>= 1.0x)\n"
                 conditions_count += 1
-
             msg += f"📊 *Cumplidas:* `{conditions_count}/4` condiciones\n"
 
             if conditions_count == 4:
