@@ -48,6 +48,8 @@ class PriceLog(Base):
     ema_slow     = Column(Numeric(20, 8), nullable=True)
     volume_ratio = Column(Numeric(10, 4), nullable=True)
     atr          = Column(Numeric(20, 8), nullable=True)
+    plus_di      = Column(Numeric(10, 4), nullable=True)
+    minus_di     = Column(Numeric(10, 4), nullable=True)
     timestamp    = Column(DateTime, default=datetime.datetime.utcnow)
 
 
@@ -72,6 +74,8 @@ def _migrate():
             "ema_slow":     "DECIMAL(20,8)",
             "volume_ratio": "DECIMAL(10,4)",
             "atr":          "DECIMAL(20,8)",
+            "plus_di":      "DECIMAL(10,4)",
+            "minus_di":     "DECIMAL(10,4)",
         }
         for col, dtype in new_price_cols.items():
             try:
@@ -125,6 +129,8 @@ def log_price(symbol, price, indicators: dict):
             ema_slow     = indicators.get("ema_slow"),
             volume_ratio = indicators.get("volume_ratio"),
             atr          = indicators.get("atr"),
+            plus_di      = indicators.get("plus_di"),
+            minus_di     = indicators.get("minus_di"),
         )
         db.add(log)
         db.commit()

@@ -512,10 +512,20 @@ class BotEngine:
                 dist_vol = target_vol - vol_ratio
                 vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"
 
+                # Evaluar las 4 condiciones del portal para el log
+                cond_rsi = (rsi <= dyn['rsi_oversold'] or rsi >= 68)
+                cond_context = price > (ind.get('ema_slow', 0) * 1.003)
+                is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) >= ind.get('plus_di', 0)
+                cond_trend = not is_downtrend_hard
+                cond_vol = vol_ratio >= 1.0
+                
+                conditions_met_count = sum([cond_rsi, cond_context, cond_trend, cond_vol])
+
                 logging.info(
                     f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} ({rsi_status}) | "
                     f"ADX: {adx:.1f} ({adx_status}) | Vol: {vol_ratio:.2f}x ({vol_status}) | "
-                    f"Signal: {signal} | DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
+                    f"Cond: {conditions_met_count}/4 | Signal: {signal} | "
+                    f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
                 notify_price_update(SYMBOL, price, ind)

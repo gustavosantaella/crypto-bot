@@ -130,6 +130,7 @@ class TelegramNotifier:
         vol     = ind.get('volume_ratio', 0)
         mode    = dyn.get('mode_active', 'N/A')
         umbral  = dyn.get('rsi_oversold', 0)
+        umbral_short = dyn.get('rsi_overbought', 68.0)
 
         # Señal de tendencia
         trend_icon = "📈" if price > ema200 else "📉"
@@ -139,7 +140,7 @@ class TelegramNotifier:
             f"📊 *ESTADO DEL BOT — {symbol}*\n"
             f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
             f"{trend_icon} *Precio:* `${price:.4f}`\n"
-            f"📡 *RSI:* `{rsi:.1f}` _(umbral activo: {umbral:.0f})_\n"
+            f"📡 *RSI:* `{rsi:.1f}` _(L: <{umbral:.0f} | S: >{umbral_short:.0f})_\n"
             f"📏 *ADX:* `{adx:.1f}` | *EMA200:* `${ema200:.2f}`\n"
             f"🔊 *Volumen:* `{vol:.2f}x` del promedio\n"
             f"🧠 *Modo adaptador:* `{mode}`\n"
@@ -151,32 +152,52 @@ class TelegramNotifier:
             msg += f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
             msg += f"🔍 *Condiciones para Entrar:*\n"
             
-            conditions_met = True
+            conditions_count = 0
             
-            # Check RSI
-            if rsi >= umbral:
-                msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f})\n"
-                conditions_met = False
+            # 1. Check RSI
+            rsi_long_ok = rsi < umbral
+            rsi_short_ok = rsi > umbral_short
+            
+            if rsi_long_ok:
+                msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
+                conditions_count += 1
+            elif rsi_short_ok:
+                msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
+                conditions_count += 1
             else:
-                msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f})\n"
+                msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f} para LONG o > {umbral_short:.0f} para SHORT)\n"
                 
-            # Check EMA200
+            # 2. Check EMA200 (Contexto Alcista)
             if ema200 > 0:
                 req_price = ema200 * 1.003
                 if price <= req_price:
-                    msg += f"❌ *Precio:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
-                    conditions_met = False
+                    msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
                 else:
-                    msg += f"✅ *Precio:* `${price:.2f}` (> `${req_price:.2f}`)\n"
+                    msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+                    conditions_count += 1
             
-            # Check ADX
-            if adx > 25:
-                msg += f"⚠️ *ADX:* `{adx:.1f}` (Tendencia fuerte, riesgo)\n"
+            # 3. Check Sin Tendencia Bajista (ADX + DI)
+            plus_di = ind.get('plus_di', 0)
+            minus_di = ind.get('minus_di', 0)
+            is_downtrend_hard = adx > 25 and minus_di >= plus_di
+            
+            if is_downtrend_hard:
+                msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
             else:
-                msg += f"✅ *ADX:* `{adx:.1f}` (< 25)\n"
+                msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
+                conditions_count += 1
 
-            if conditions_met:
-                msg += f"⏳ *Todo listo. Esperando giro de RSI o cierre de vela.*\n"
+            # 4. Check Volumen Confirmado
+            if vol < 1.0:
+                msg += f"❌ *Volumen:* `{vol:.2f}x` (Debe ser >= 1.0x)\n"
+            else:
+                msg += f"✅ *Volumen:* `{vol:.2f}x` (>= 1.0x)\n"
+                conditions_count += 1
+
+            msg += f"📊 *Cumplidas:* `{conditions_count}/4` condiciones\n"
+
+            if conditions_count == 4:
+                msg += f"⏳ *Todo listo. Esperando señal del bot.*\n"
 
         if has_position and avg_price:
             pnl_pct = ((price - avg_price) / avg_price) * 100
