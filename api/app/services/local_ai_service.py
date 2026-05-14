@@ -94,14 +94,16 @@ class LocalAIService:
         # Votación
         prediction = neighbors['label'].mode().values[0]
         
-        # Calcular RSI recomendado basado en los vecinos que tuvieron éxito (label == 1)
-        successful_neighbors = neighbors[neighbors['label'] == 1]
+        # Si la predicción es HOLD (0), por defecto buscamos LONGs (1) para sugerir RSI
+        target_label = prediction if prediction != 0 else 1
+        
+        # Calcular RSI recomendado basado en los vecinos que tuvieron éxito con esa etiqueta (1 o -1)
+        successful_neighbors = neighbors[neighbors['label'] == target_label]
         if not successful_neighbors.empty:
             recommended_rsi = successful_neighbors['rsi'].mean()
         else:
-            # Si no hay ganadores entre los vecinos más cercanos, buscamos en todo el train_df
-            # los registros donde label == 1 y tomamos el promedio de los más cercanos
-            all_successful = train_df[train_df['label'] == 1]
+            # Si no hay ganadores con esa etiqueta entre los vecinos más cercanos, buscamos en todo el train_df
+            all_successful = train_df[train_df['label'] == target_label]
             if not all_successful.empty:
                 recommended_rsi = all_successful.sort_values(by='distance').head(k_neighbors)['rsi'].mean()
             else:

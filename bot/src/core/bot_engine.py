@@ -8,6 +8,7 @@ from src.config.trading_params import (
     DCA_ENABLED, MAX_DCA_ORDERS, DCA_ENTRY_SIZE_PCT, DCA_MIN_DROP_PCT,
     ATR_SL_MULTIPLIER, ATR_TP_MULTIPLIER,
     USE_TRAILING_STOP, TRAILING_TRIGGER_ATR,
+    RSI_OVERBOUGHT, RSI_OVERSOLD
 )
 from src.utils.db import log_trade, log_price, update_status, get_last_status, init_db
 from src.utils.telegram_notifier import TelegramNotifier
@@ -453,7 +454,13 @@ class BotEngine:
                 if self.has_position and self.trade_type == "LONG":
                     self._check_trailing_stop(price, atr)
 
-                # ── 4. Obtener señal de la estrategia ──────────────────────────
+                # -- 4a. Leer predicción de la IA (entrenada en segundo plano) ---
+                ai_cached = ai_trainer.get_cached_prediction()
+                ai_prediction = ai_cached["prediction"]
+                ai_accuracy = ai_cached["accuracy"]
+                ai_raw = ai_cached.get("raw_prediction", 0)
+
+                # ── 4b. Obtener señal de la estrategia ──────────────────────────
                 last_dca_price = self.dca_entries[-1]["price"] if self.dca_entries else None
 
                 signal, new_tp, new_sl = RSIStrategy.get_signal(
@@ -473,19 +480,24 @@ class BotEngine:
                     dyn_dca_rsi_4=dyn['dca_rsi_level_4'],
                     dyn_atr_sl_mult=dyn['atr_sl_mult'],
                     dyn_atr_tp_mult=dyn['atr_tp_mult'],
+                    # Inteligencia Artificial
+                    ai_label=ai_raw,
+                    ai_accuracy=ai_accuracy
                 )
 
                 # -- 5. Persistir precio + indicadores en DB cada ciclo --
                 log_price(SYMBOL, price, ind)
 
-                # -- 5b. Leer predicción de la IA (entrenada en segundo plano) ---
-                ai_cached = ai_trainer.get_cached_prediction()
-                ai_prediction = ai_cached["prediction"]
-                ai_accuracy = ai_cached["accuracy"]
-
                 # -- 6. Log del ciclo --
+                target_rsi_str = f"<{dyn['rsi_oversold']:.1f} o >{RSI_OVERBOUGHT}"
+                if self.has_position:
+                    if self.trade_type == "LONG":
+                        target_rsi_str = f">{RSI_OVERBOUGHT} (TP)"
+                    else:
+                        target_rsi_str = f"<{RSI_OVERSOLD} (TP)"
+
                 logging.info(
-                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} | "
+                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} (Esperando: {target_rsi_str}) | "
                     f"ADX: {adx:.1f} | Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
                     f"IA: {ai_prediction} ({ai_accuracy:.1%}) | "
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "

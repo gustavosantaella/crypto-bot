@@ -116,24 +116,12 @@ class RSIStrategy:
                    dyn_dca_rsi_3=None,
                    dyn_dca_rsi_4=None,
                    dyn_atr_sl_mult=None,
-                   dyn_atr_tp_mult=None):
+                   dyn_atr_tp_mult=None,
+                   # Inteligencia Artificial
+                   ai_label=0,
+                   ai_accuracy=0.0):
         """
         Genera la señal de trading con filtros múltiples para máxima calidad.
-
-        Señales:
-          BUY        → Primera entrada LONG (todos los filtros pasan)
-          BUY_DCA    → Entrada adicional DCA (RSI más bajo + precio más bajo)
-          SELL_SHORT → Abrir posición SHORT
-          SELL       → Cerrar posición LONG (TP, SL o RSI overbought)
-          BUY_BACK   → Cerrar posición SHORT
-          HOLD       → Mantener, no hacer nada
-
-        Filtros de entrada LONG (TODOS deben cumplirse):
-          1. RSI < RSI_OVERSOLD             → mercado sobrevendido
-          2. RSI actual > RSI anterior      → RSI girando hacia arriba (reversa)
-          3. precio > EMA lenta             → contexto de mercado alcista (macro)
-          4. NO tendencia bajista fuerte    → ADX no confirma caída sostenida
-          5. (Opcional) Volumen confirma    → interés real en el rebote
         """
         rsi = ind['rsi']
         rsi_prev = ind['rsi_prev']
@@ -163,9 +151,6 @@ class RSIStrategy:
         is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
 
         # Filtro de tendencia macro ESTRICTO: el precio debe estar claramente sobre la EMA200
-        # Antes: se permitía hasta 0.5% BAJO la EMA (demasiado permisivo - causó el trade perdido)
-        # Ahora: precio debe estar al menos 0.3% SOBRE la EMA para confirmar contexto alcista
-        # Esto evita entrar cuando el precio está en zona de resistencia (justo en la EMA200)
         price_above_ema_slow = current_price > (ema_slow * 1.003)
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
@@ -179,23 +164,28 @@ class RSIStrategy:
 
             # ── Señal LONG ────────────────────────────────────────────────────
             # Condiciones de entrada (todas deben cumplirse para ser conservador):
-            rsi_oversold    = rsi < effective_rsi_oversold  # Cond 1: RSI sobrevendido (dinámico)
+            rsi_oversold_ok = rsi < effective_rsi_oversold  # Cond 1: RSI sobrevendido (dinámico)
             trend_ok        = not is_downtrend_hard          # Cond 2: No en tendencia bajista fuerte
             macro_trend_ok  = price_above_ema_slow           # Cond 3: Precio sobre EMA lenta
 
-            if rsi_oversold and trend_ok and macro_trend_ok:
+            if rsi_oversold_ok and trend_ok and macro_trend_ok:
                 # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista
                 tp = current_price + tp_dist
                 sl = current_price - sl_dist
                 return 'BUY', tp, sl
 
             # ── Señal SHORT ───────────────────────────────────────────────────
-            # Solo abrir SHORT en contexto bajista claro (más restrictivo que LONG)
+            # Aquí es donde aplicamos la "IA Inteligente" para no depender solo de ir en caída.
             rsi_overbought   = rsi > RSI_OVERBOUGHT
-            short_macro_ok   = current_price < ema_slow   # Precio BAJO la EMA lenta
-            short_trend_ok   = is_strong_trend and not is_uptrend_di  # Tendencia bajista confirmada
+            
+            # 1. Condición Clásica: Solo si el precio ya está bajo la EMA200 (Mercado bajista)
+            classic_short_ok = (current_price < ema_slow) and is_strong_trend and not is_uptrend_di
+            
+            # 2. Condición Inteligente (IA): Si el precio está arriba de la EMA200 (Mercado alcista o lateral),
+            # permitimos short SOLO si la IA predice SHORT con buena precisión (>= 60%) y el RSI está sobrecomprado.
+            ai_short_ok = (ai_label == -1 and ai_accuracy >= 0.60)
 
-            if rsi_overbought and short_macro_ok and short_trend_ok:
+            if rsi_overbought and (classic_short_ok or ai_short_ok):
                 tp = current_price - tp_dist
                 sl = current_price + sl_dist
                 return 'SELL_SHORT', tp, sl
