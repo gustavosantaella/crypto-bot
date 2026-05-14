@@ -10,13 +10,13 @@ if __name__ == "__main__":
     for arg in sys.argv:
         if arg.startswith("--env="):
             env = arg.split("=")[1]
-            env_file = f"environments/.{env}.env"
+            env_file = f"../environments/.{env}.env"
             has_env_arg = True
             break
             
     if not has_env_arg and not os.path.exists(env_file):
-        if os.path.exists("environments/.sol.env"):
-            env_file = "environments/.sol.env"
+        if os.path.exists("../environments/.sol.env"):
+            env_file = "../environments/.sol.env"
             
     os.environ["ENV_FILE"] = env_file
 
