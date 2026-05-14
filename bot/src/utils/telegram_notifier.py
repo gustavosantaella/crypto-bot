@@ -141,6 +141,37 @@ class TelegramNotifier:
             f"{pos_icon} *Posición:* {'ABIERTA' if has_position else 'Sin posición'}\n"
         )
 
+        if not has_position:
+            msg += f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
+            msg += f"🔍 *Condiciones para Entrar:*\n"
+            
+            conditions_met = True
+            
+            # Check RSI
+            if rsi >= umbral:
+                msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f})\n"
+                conditions_met = False
+            else:
+                msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f})\n"
+                
+            # Check EMA200
+            if ema200 > 0:
+                req_price = ema200 * 1.003
+                if price <= req_price:
+                    msg += f"❌ *Precio:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
+                    conditions_met = False
+                else:
+                    msg += f"✅ *Precio:* `${price:.2f}` (> `${req_price:.2f}`)\n"
+            
+            # Check ADX
+            if adx > 25:
+                msg += f"⚠️ *ADX:* `{adx:.1f}` (Tendencia fuerte, riesgo)\n"
+            else:
+                msg += f"✅ *ADX:* `{adx:.1f}` (< 25)\n"
+
+            if conditions_met:
+                msg += f"⏳ *Todo listo. Esperando giro de RSI o cierre de vela.*\n"
+
         if has_position and avg_price:
             pnl_pct = ((price - avg_price) / avg_price) * 100
             pnl_icon = "🟢" if pnl_pct >= 0 else "🔴"
