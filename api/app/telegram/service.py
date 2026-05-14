@@ -190,11 +190,20 @@ class TelegramBot:
                 return
 
             pos_status = "✅ ACTIVA" if status.has_position else "⏳ ESPERANDO SEÑAL"
+            
+            estrategia = status.trade_type
+            if not status.has_position:
+                if last_price and last_price.rsi:
+                    dir_s = "SHORT" if last_price.rsi > 50 else "LONG"
+                    estrategia = f"Buscando {dir_s} (RSI: {last_price.rsi:.1f})"
+                else:
+                    estrategia = "Buscando LONG/SHORT"
+                    
             msg = (
-                f"🤖 *ESTADO DEL BOT*\n"
+                f"📊 *ESTADO DEL BOT*\n"
                 f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
                 f"📈 *Posición:* {pos_status}\n"
-                f"🔧 *Estrategia:* `{status.trade_type}`\n"
+                f"🔧 *Estrategia:* `{estrategia}`\n"
             )
 
             if status.has_position and status.last_buy_price:

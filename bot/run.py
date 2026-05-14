@@ -9,6 +9,13 @@ for arg in sys.argv:
         env = arg.split("=")[1]
         env_file = f"environments/.{env}.env"
         break
+
+# Fallback to .sol.env if default .env doesn't exist
+if env_file == ".env" and not os.path.exists(env_file):
+    if os.path.exists("environments/.sol.env"):
+        env_file = "environments/.sol.env"
+        print(f"No se encontro .env. Usando fallback: {env_file}")
+
 os.environ["ENV_FILE"] = env_file
 
 from src.core.bot_engine import BotEngine

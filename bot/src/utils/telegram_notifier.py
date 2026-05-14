@@ -150,42 +150,67 @@ class TelegramNotifier:
 
         if not has_position:
             msg += f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
-            msg += f"🔍 *Condiciones para Entrar:*\n"
             
+            # Decidir dirección basada en RSI
+            looking_for_short = rsi > 50
+            
+            msg += f"🔍 *Buscando Señal (Mostrando más cercana):*\n"
+            if looking_for_short:
+                msg += f"🔸 *Dirección:* `SHORT`\n"
+            else:
+                msg += f"🔸 *Dirección:* `LONG`\n"
+                
             conditions_count = 0
             
             # 1. Check RSI
-            rsi_long_ok = rsi < umbral
-            rsi_short_ok = rsi > umbral_short
-            
-            if rsi_long_ok:
-                msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
-                conditions_count += 1
-            elif rsi_short_ok:
-                msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
-                conditions_count += 1
-            else:
-                msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f} para LONG o > {umbral_short:.0f} para SHORT)\n"
-                
-            # 2. Check EMA200 (Contexto Alcista)
-            if ema200 > 0:
-                req_price = ema200 * 1.003
-                if price <= req_price:
-                    msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
-                else:
-                    msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+            if looking_for_short:
+                if rsi > umbral_short:
+                    msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
                     conditions_count += 1
+                else:
+                    msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser > {umbral_short:.0f})\n"
+            else:
+                if rsi < umbral:
+                    msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
+                    conditions_count += 1
+                else:
+                    msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f})\n"
+                    
+            # 2. Check Contexto (EMA200)
+            if ema200 > 0:
+                if looking_for_short:
+                    req_price = ema200 * 0.997
+                    if price >= req_price:
+                        msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser < `${req_price:.2f}` [EMA200-0.3%])\n"
+                    else:
+                        msg += f"✅ *Contexto:* Bajista (`${price:.2f}` < `${req_price:.2f}`)\n"
+                        conditions_count += 1
+                else:
+                    req_price = ema200 * 1.003
+                    if price <= req_price:
+                        msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
+                    else:
+                        msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+                        conditions_count += 1
             
-            # 3. Check Sin Tendencia Bajista (ADX + DI)
+            # 3. Check Tendencia (ADX + DI)
             plus_di = ind.get('plus_di', 0)
             minus_di = ind.get('minus_di', 0)
-            is_downtrend_hard = adx > 25 and minus_di >= plus_di
             
-            if is_downtrend_hard:
-                msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+            if looking_for_short:
+                is_uptrend_hard = adx > 25 and plus_di >= minus_di
+                if is_uptrend_hard:
+                    msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ >= DI-)\n"
+                else:
+                    msg += f"✅ *Tendencia:* Sin tendencia alcista fuerte\n"
+                    conditions_count += 1
             else:
-                msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
-                conditions_count += 1
+                is_downtrend_hard = adx > 25 and minus_di >= plus_di
+                if is_downtrend_hard:
+                    msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+                else:
+                    msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
+                    conditions_count += 1
 
             # 4. Check Volumen Confirmado
             if vol < 1.0:
