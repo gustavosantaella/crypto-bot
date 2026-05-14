@@ -175,27 +175,25 @@ class RSIStrategy:
             trend_ok        = not is_downtrend_hard          # Cond 2: No en tendencia bajista fuerte
             macro_trend_ok  = price_above_ema_slow           # Cond 3: Precio sobre EMA lenta
 
-            if rsi_oversold_ok and trend_ok and macro_trend_ok:
-                # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista
+            if rsi_oversold_ok and trend_ok and macro_trend_ok and volume_confirms:
+                # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista + volumen
                 tp = current_price + tp_dist
                 sl = current_price - sl_dist
                 return 'BUY', tp, sl
 
             # ── Señal SHORT ───────────────────────────────────────────────────
-            # Aquí es donde aplicamos la "IA Inteligente" para no depender solo de ir en caída.
+            # Short counter-trend agresivo (Top-catching) según feedback del usuario:
+            # Permite shortear el tope de una tendencia si el RSI está sobrecomprado, 
+            # el RSI empezó a caer, la presión vendedora supera la compradora (DI- > DI+), y hay volumen.
             rsi_overbought   = rsi > effective_rsi_overbought
             
-            # 1. Condición Clásica: Solo si el precio ya está bajo la EMA200 (Mercado bajista)
-            classic_short_ok = (current_price < ema_slow) and is_strong_trend and not is_uptrend_di
+            # Condición de contexto bajista (puede ser clásico bajo la EMA, o tope alcista sobre la EMA)
+            # Para simplificar y hacer lo que el usuario pide (short en pleno precio alto):
+            # No exigiremos que el precio esté bajo la EMA200. Solo que el momentum se agote.
+            momentum_agotado = (rsi < rsi_prev) and (minus_di >= plus_di)
+            no_uptrend_hard = not (is_strong_trend and is_uptrend_di)
             
-            # 2. Condición Inteligente basada puramente en el Mercado (Sin IA):
-            # Si el precio está ARRIBA de la EMA200 (Mercado alcista o lateral), permitimos short si:
-            # - El RSI está sobrecomprado (ya se cumple por la condición padre).
-            # - El RSI está girando hacia abajo (rsi < rsi_prev), confirmando pérdida de fuerza.
-            # - La presión vendedora supera a la compradora (minus_di > plus_di).
-            market_short_ok = (current_price >= ema_slow) and (rsi < rsi_prev) and (minus_di > plus_di)
-
-            if rsi_overbought and (classic_short_ok or market_short_ok):
+            if rsi_overbought and momentum_agotado and no_uptrend_hard and volume_confirms:
                 tp = current_price - tp_dist
                 sl = current_price + sl_dist
                 return 'SELL_SHORT', tp, sl

@@ -37,6 +37,9 @@ class PriceLogBase(BaseModel):
     ema_slow:     Optional[Decimal] = None
     volume_ratio: Optional[Decimal] = None
     atr:          Optional[Decimal] = None
+    plus_di:      Optional[Decimal] = None
+    minus_di:     Optional[Decimal] = None
+
 
 class PriceLog(PriceLogBase):
     id:        int

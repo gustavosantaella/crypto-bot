@@ -32,7 +32,6 @@ LOCK_FILE = "bot.lock"
 MAX_MESSAGES_PER_SECOND = 1        # Telegram allows ~30/sec but we stay safe
 MIN_MESSAGE_INTERVAL = 1.0         # Seconds between sends
 
-
 class MessageDeduplicator:
     """
     Tracks recently sent messages by content hash to prevent duplicates.
@@ -65,7 +64,6 @@ class MessageDeduplicator:
             self._cache.popitem(last=False)
 
         return False
-
 
 class TelegramBot:
     def __init__(self):
@@ -296,17 +294,20 @@ class TelegramBot:
                             falta = rsi - umbral
                             msg += f"❌ *RSI:* `{rsi:.1f}` (Falta {falta:.1f} para < {umbral:.0f})\n"
                             
-                    # 2. Check Contexto (EMA200)
-                    if ema_slow > 0:
-                        if looking_for_short:
-                            req_price = ema_slow * 0.997
-                            if price >= req_price:
-                                falta = price - req_price
-                                msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para < `${req_price:.2f}` [EMA200-0.3%])\n"
-                            else:
-                                msg += f"✅ *Contexto:* Bajista (`${price:.2f}` < `${req_price:.2f}`)\n"
-                                conditions_count += 1
+                    # 2. Check Contexto
+                    if looking_for_short:
+                        rsi_prev = float(last_price.rsi_prev) if hasattr(last_price, 'rsi_prev') and last_price.rsi_prev else 50
+                        minus_di = float(last_price.minus_di) if last_price.minus_di else 0
+                        plus_di = float(last_price.plus_di) if last_price.plus_di else 0
+                        momentum_agotado = (rsi < rsi_prev) and (minus_di >= plus_di)
+                        
+                        if momentum_agotado:
+                            msg += f"✅ *Contexto:* Giro bajista confirmado (RSI cae, DI- >= DI+)\n"
+                            conditions_count += 1
                         else:
+                            msg += f"❌ *Contexto:* Esperando giro bajista (RSI debe caer, DI- >= DI+)\n"
+                    else:
+                        if ema_slow > 0:
                             req_price = ema_slow * 1.003
                             if price <= req_price:
                                 falta = req_price - price
@@ -314,26 +315,28 @@ class TelegramBot:
                             else:
                                 msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
                                 conditions_count += 1
+                        else:
+                            msg += f"❌ *Contexto:* Esperando EMA200\n"
                     
                     # 3. Check Tendencia (ADX + DI)
                     plus_di = float(last_price.plus_di) if last_price.plus_di else 0
                     minus_di = float(last_price.minus_di) if last_price.minus_di else 0
                     
                     if looking_for_short:
-                        is_uptrend_hard = adx > 25 and plus_di >= minus_di
+                        is_uptrend_hard = adx > 25 and plus_di > minus_di
                         if is_uptrend_hard:
-                            msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ >= DI-)\n"
+                            msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ > DI-)\n"
                         else:
                             msg += f"✅ *Tendencia:* Sin tendencia alcista fuerte\n"
                             conditions_count += 1
                     else:
-                        is_downtrend_hard = adx > 25 and minus_di >= plus_di
+                        is_downtrend_hard = adx > 25 and minus_di > plus_di
                         if is_downtrend_hard:
-                            msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+                            msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- > DI+)\n"
                         else:
                             msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
                             conditions_count += 1
-                            
+
                     # 4. Check Volumen Confirmado
                     vol = float(last_price.volume_ratio) if last_price.volume_ratio else 0.0
                     
@@ -650,7 +653,6 @@ class TelegramBot:
                 os.remove(LOCK_FILE)
         except OSError:
             pass
-
 
 # Singleton instance
 telegram_bot = TelegramBot()

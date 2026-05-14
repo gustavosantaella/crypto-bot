@@ -15,7 +15,6 @@ from src.config.settings import TELEGRAM_TOKEN, TELEGRAM_ID
 STATUS_INTERVAL = 300
 _last_status_sent: float = 0.0
 
-
 class TelegramNotifier:
 
     # ─────────────────────────────────────────────────────────────────────────
@@ -178,17 +177,20 @@ class TelegramNotifier:
                     falta = rsi - umbral
                     msg += f"❌ *RSI:* `{rsi:.1f}` (Falta {falta:.1f} para < {umbral:.0f})\n"
                     
-            # 2. Check Contexto (EMA200)
-            if ema200 > 0:
-                if looking_for_short:
-                    req_price = ema200 * 0.997
-                    if price >= req_price:
-                        falta = price - req_price
-                        msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para < `${req_price:.2f}` [EMA200-0.3%])\n"
-                    else:
-                        msg += f"✅ *Contexto:* Bajista (`${price:.2f}` < `${req_price:.2f}`)\n"
-                        conditions_count += 1
+            # 2. Check Contexto
+            if looking_for_short:
+                rsi_prev = ind.get('rsi_prev', 50)
+                minus_di = ind.get('minus_di', 0)
+                plus_di = ind.get('plus_di', 0)
+                momentum_agotado = (rsi < rsi_prev) and (minus_di >= plus_di)
+                
+                if momentum_agotado:
+                    msg += f"✅ *Contexto:* Giro bajista confirmado (RSI cae, DI- >= DI+)\n"
+                    conditions_count += 1
                 else:
+                    msg += f"❌ *Contexto:* Esperando giro bajista (RSI debe caer, DI- >= DI+)\n"
+            else:
+                if ema200 > 0:
                     req_price = ema200 * 1.003
                     if price <= req_price:
                         falta = req_price - price
@@ -196,22 +198,24 @@ class TelegramNotifier:
                     else:
                         msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
                         conditions_count += 1
+                else:
+                    msg += f"❌ *Contexto:* Esperando EMA200\n"
             
             # 3. Check Tendencia (ADX + DI)
             plus_di = ind.get('plus_di', 0)
             minus_di = ind.get('minus_di', 0)
             
             if looking_for_short:
-                is_uptrend_hard = adx > 25 and plus_di >= minus_di
+                is_uptrend_hard = adx > 25 and plus_di > minus_di
                 if is_uptrend_hard:
-                    msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ >= DI-)\n"
+                    msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ > DI-)\n"
                 else:
                     msg += f"✅ *Tendencia:* Sin tendencia alcista fuerte\n"
                     conditions_count += 1
             else:
-                is_downtrend_hard = adx > 25 and minus_di >= plus_di
+                is_downtrend_hard = adx > 25 and minus_di > plus_di
                 if is_downtrend_hard:
-                    msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+                    msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- > DI+)\n"
                 else:
                     msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
                     conditions_count += 1

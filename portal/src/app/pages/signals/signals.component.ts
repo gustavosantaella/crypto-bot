@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, AfterViewInit } from '
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ApiService } from '../../api.service';
+import { WebsocketService } from '../../websocket.service';
 import { interval, Subscription } from 'rxjs';
 
 declare var Chart: any;
@@ -55,7 +56,7 @@ declare var Chart: any;
       <div style="font-size:1.8rem;font-weight:900;" [style.color]="live?.volume_ratio>=1.2?'var(--success)':'var(--text-muted)'">
         {{ live?.volume_ratio | number:'1.2-2' }}x
       </div>
-      <div style="font-size:.6rem;color:var(--text-muted);font-weight:700;">{{ live?.volume_ratio>=1.2?'HIGH VOL':'NORMAL' }}</div>
+      <div style="font-size:.6rem;color:var(--text-muted);font-weight:700;">{{ live?.volume_ratio >= 1.2 ? 'HIGH VOL' : (live?.volume_ratio >= 1.0 ? 'NORMAL' : 'LOW VOL') }}</div>
     </div>
     <div class="glass-card" style="padding:.75rem;text-align:center;">
       <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">ATR (14)</div>
@@ -157,11 +158,34 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   private volChart: any;
   private sub?: Subscription;
 
-  constructor(private api: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(private api: ApiService, private wsService: WebsocketService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.fetchLogs();
-    this.sub = interval(30000).subscribe(() => this.fetchLogs());
+    this.sub = this.wsService.getMessages().subscribe(msg => {
+      if (msg.type === 'PRICE_UPDATE') {
+        const data = msg.data;
+        const newLog = {
+          symbol: data.symbol,
+          price: parseFloat(data.price),
+          rsi: parseFloat(data.rsi),
+          rsi_prev: parseFloat(data.rsi_prev || '50'),
+          ema_slow: parseFloat(data.ema200 || '0'),
+          ema_fast: parseFloat(data.ema_fast || '0'),
+          adx: parseFloat(data.adx || '0'),
+          plus_di: parseFloat(data.plus_di || '0'),
+          minus_di: parseFloat(data.minus_di || '0'),
+          volume_ratio: parseFloat(data.volume_ratio || '0'),
+          atr: parseFloat(data.atr || '0'),
+          timestamp: data.timestamp || new Date().toISOString()
+        };
+        this.logs.push(newLog);
+        if (this.logs.length > 100) this.logs.shift();
+        this.live = newLog;
+        this.cdr.detectChanges();
+        this.initCharts();
+      }
+    });
   }
 
   ngAfterViewInit() {}
@@ -275,22 +299,25 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         ? `RSI ${rsi.toFixed(1)} > ${umbralShort.toFixed(1)} (Short)` 
         : `RSI ${rsi.toFixed(1)} < ${umbralLong.toFixed(1)} (Long)`;
 
-    // 2. Contexto (EMA200)
+    // 2. Contexto
     let isContextOk = false;
     let contextDetail = '';
-    const contextLabel = lookingForShort ? 'Contexto Bajista' : 'Contexto Alcista';
-    if (emaSlow > 0) {
-      if (lookingForShort) {
-        const reqPrice = emaSlow * 0.997;
-        isContextOk = price < reqPrice;
-        contextDetail = `Precio $${price.toFixed(2)} < EMA200-0.3% $${reqPrice.toFixed(2)}`;
-      } else {
-        const reqPrice = emaSlow * 1.003;
-        isContextOk = price > reqPrice;
-        contextDetail = `Precio $${price.toFixed(2)} > EMA200+0.3% $${reqPrice.toFixed(2)}`;
-      }
+    const contextLabel = lookingForShort ? 'Giro Bajista' : 'Contexto Alcista';
+    
+    if (lookingForShort) {
+        // Top-catching short
+        const rsiPrev = parseFloat(this.logs.length > 1 ? this.logs[this.logs.length - 2].rsi : rsi) || 50;
+        const momentumAgotado = (rsi < rsiPrev) && (minusDi >= plusDi);
+        isContextOk = momentumAgotado;
+        contextDetail = momentumAgotado ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'Esperando caída de RSI y presión vendedora';
     } else {
-        contextDetail = 'Esperando datos de EMA200...';
+        if (emaSlow > 0) {
+            const reqPrice = emaSlow * 1.003;
+            isContextOk = price > reqPrice;
+            contextDetail = `Precio $${price.toFixed(2)} > EMA200+0.3% $${reqPrice.toFixed(2)}`;
+        } else {
+            contextDetail = 'Esperando datos de EMA200...';
+        }
     }
 
     // 3. Tendencia
@@ -298,11 +325,11 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     let trendDetail = '';
     const trendLabel = lookingForShort ? 'Sin Tendencia Alcista' : 'Sin Tendencia Bajista';
     if (lookingForShort) {
-      const isUptrendHard = adx > 25 && plusDi >= minusDi;
+      const isUptrendHard = adx > 25 && plusDi > minusDi;
       isTrendOk = !isUptrendHard;
       trendDetail = isUptrendHard ? 'Tendencia alcista fuerte detectada' : 'Sin tendencia alcista fuerte';
     } else {
-      const isDowntrendHard = adx > 25 && minusDi >= plusDi;
+      const isDowntrendHard = adx > 25 && minusDi > plusDi;
       isTrendOk = !isDowntrendHard;
       trendDetail = isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte';
     }

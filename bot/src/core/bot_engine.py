@@ -515,21 +515,24 @@ class BotEngine:
                 # Evaluar las 4 condiciones del portal para el log
                 looking_for_short = rsi > 50
                 
+                cond_vol = vol_ratio >= 1.0
+                
                 if looking_for_short:
                     cond_rsi = rsi > dyn['rsi_overbought']
-                    cond_context = price < (ind.get('ema_slow', 0) * 0.997)
-                    is_uptrend_hard = adx > 25 and ind.get('plus_di', 0) >= ind.get('minus_di', 0)
+                    
+                    # Contexto de giro bajista (top-catching)
+                    rsi_prev = ind.get('rsi_prev', 50)
+                    cond_context = (rsi < rsi_prev) and (ind.get('minus_di', 0) >= ind.get('plus_di', 0))
+                    
+                    is_uptrend_hard = adx > 25 and ind.get('plus_di', 0) > ind.get('minus_di', 0)
                     cond_trend = not is_uptrend_hard
                 else:
                     cond_rsi = rsi < dyn['rsi_oversold']
                     cond_context = price > (ind.get('ema_slow', 0) * 1.003)
-                    is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) >= ind.get('plus_di', 0)
+                    is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     cond_trend = not is_downtrend_hard
                     
-                cond_vol = vol_ratio >= 1.0
-                
                 conditions_met_count = sum([cond_rsi, cond_context, cond_trend, cond_vol])
-
                 logging.info(
                     f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} ({rsi_status}) | "
                     f"ADX: {adx:.1f} ({adx_status}) | Vol: {vol_ratio:.2f}x ({vol_status}) | "
