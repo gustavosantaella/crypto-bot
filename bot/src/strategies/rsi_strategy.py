@@ -117,10 +117,7 @@ class RSIStrategy:
                    dyn_dca_rsi_3=None,
                    dyn_dca_rsi_4=None,
                    dyn_atr_sl_mult=None,
-                   dyn_atr_tp_mult=None,
-                   # Inteligencia Artificial
-                   ai_label=0,
-                   ai_accuracy=0.0):
+                   dyn_atr_tp_mult=None):
         """
         Genera la señal de trading con filtros múltiples para máxima calidad.
         """

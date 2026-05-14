@@ -13,7 +13,6 @@ from src.config.trading_params import (
 from src.utils.db import log_trade, log_price, update_status, get_last_status, init_db
 from src.utils.telegram_notifier import TelegramNotifier
 from src.utils.ws_notifier import notify_price_update, notify_status_update, notify_new_trade
-from src.utils.ai_trainer import ai_trainer
 
 
 class BotEngine:
@@ -23,11 +22,6 @@ class BotEngine:
         # -- Estado principal ---------------------------------------------------
         self.has_position = False      # True si hay al menos una posición abierta
         self.trade_type = "LONG"       # Tipo: LONG o SHORT
-
-        # -- IA Background Trainer ------------------------------------------------
-        # Launches a background thread that trains the AI model every 2 minutes
-        # and logs predictions to logs/ia.log
-        ai_trainer.start()
 
         # ── Gestión de riesgo ─────────────────────────────────────────────────
         self.target_tp = None          # Precio de Take Profit (desde precio promedio)
@@ -456,13 +450,7 @@ class BotEngine:
                 if self.has_position and self.trade_type == "LONG":
                     self._check_trailing_stop(price, atr)
 
-                # -- 4a. Leer predicción de la IA (entrenada en segundo plano) ---
-                ai_cached = ai_trainer.get_cached_prediction()
-                ai_prediction = ai_cached["prediction"]
-                ai_accuracy = ai_cached["accuracy"]
-                ai_raw = ai_cached.get("raw_prediction", 0)
-
-                # ── 4b. Obtener señal de la estrategia ──────────────────────────
+                # ── 4. Obtener señal de la estrategia ──────────────────────────
                 last_dca_price = self.dca_entries[-1]["price"] if self.dca_entries else None
 
                 signal, new_tp, new_sl = RSIStrategy.get_signal(
@@ -481,10 +469,7 @@ class BotEngine:
                     dyn_dca_rsi_3=dyn['dca_rsi_level_3'],
                     dyn_dca_rsi_4=dyn['dca_rsi_level_4'],
                     dyn_atr_sl_mult=dyn['atr_sl_mult'],
-                    dyn_atr_tp_mult=dyn['atr_tp_mult'],
-                    # Inteligencia Artificial
-                    ai_label=ai_raw,
-                    ai_accuracy=ai_accuracy
+                    dyn_atr_tp_mult=dyn['atr_tp_mult']
                 )
 
                 # -- 5. Persistir precio + indicadores en DB solo cuando cambie la vela --
@@ -506,7 +491,6 @@ class BotEngine:
                 logging.info(
                     f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} (Esperando: {target_rsi_str}) | "
                     f"ADX: {adx:.1f} | Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
-                    f"IA: {ai_prediction} ({ai_accuracy:.1%}) | "
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
