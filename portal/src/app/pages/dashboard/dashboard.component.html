@@ -24,7 +24,12 @@
       <div class="status-pill">
         <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'"
              style="width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentcolor;"></div>
-        <span>{{ apiOnline ? 'SYSTEM ONLINE' : 'OFFLINE' }}</span>
+        <span>{{ apiOnline ? 'API' : 'OFFLINE' }}</span>
+      </div>
+      <div class="status-pill">
+        <div [style.background-color]="wsConnected ? 'var(--success)' : 'var(--danger)'"
+             style="width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentcolor;"></div>
+        <span>{{ wsConnected ? 'WS LIVE' : 'WS OFF' }}</span>
       </div>
     </div>
   </header>

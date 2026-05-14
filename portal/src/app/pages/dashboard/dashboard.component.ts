@@ -54,6 +54,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   winRate: number = 0;
   totalROI: number = 0;
   apiOnline: boolean = false;
+  wsConnected: boolean = false;
   botInventory: any[] = [];
   showDocs: boolean = false;
 
@@ -80,6 +81,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   private chart: any;
   private refreshSub?: Subscription;
   private wsSub?: Subscription;
+  private wsStateSub?: Subscription;
 
   constructor(
     private apiService: ApiService,
@@ -240,6 +242,12 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.wsSub = this.wsService.getMessages().subscribe(msg => {
       this.handleWsMessage(msg);
+    });
+
+    // Track WebSocket connection state for UI indicator
+    this.wsStateSub = this.wsService.getConnectionState().subscribe(connected => {
+      this.wsConnected = connected;
+      this.cdr.detectChanges();
     });
   }
 
@@ -408,6 +416,7 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnDestroy() {
     this.refreshSub?.unsubscribe();
     this.wsSub?.unsubscribe();
+    this.wsStateSub?.unsubscribe();
   }
 
   fetchData() {
