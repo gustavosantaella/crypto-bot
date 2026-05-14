@@ -234,7 +234,7 @@ class TelegramBot:
                     
                     # 1. Check RSI
                     umbral = 25.0  # Default or derived
-                    umbral_short = 68.0
+                    umbral_short = float(os.getenv("RSI_OVERBOUGHT", 70.0))
                     
                     rsi_long_ok = rsi < umbral
                     rsi_short_ok = rsi > umbral_short
