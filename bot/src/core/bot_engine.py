@@ -39,8 +39,10 @@ class BotEngine:
         self.dca_entries = []
         self.avg_entry_price = None    # Precio promedio ponderado de todas las entradas
 
+        # Optimización: evitar escribir en DB en cada ciclo de 2 segundos
+        self.last_candle_ts = None     # Timestamp de la última vela guardada
+
         # Cooldown anti-spam: si una orden falla, bloquear nuevos intentos por N segundos
-        # Evita que el bot intente comprar cada 5 segundos en loop infinito
         self._buy_blocked_until: float = 0.0  # timestamp unix; 0 = sin bloqueo
 
         # Recuperar estado previo si el bot se reinicio con posicion abierta
@@ -485,8 +487,13 @@ class BotEngine:
                     ai_accuracy=ai_accuracy
                 )
 
-                # -- 5. Persistir precio + indicadores en DB cada ciclo --
-                log_price(SYMBOL, price, ind)
+                # -- 5. Persistir precio + indicadores en DB solo cuando cambie la vela --
+                # Esto reduce drásticamente el uso de CPU y disco, y hace que la IA aprenda mejor
+                # de un histórico más amplio en lugar de saturarse con datos de cada 2 segundos.
+                current_candle_ts = ind.get('timestamp')
+                if current_candle_ts != self.last_candle_ts:
+                    log_price(SYMBOL, price, ind)
+                    self.last_candle_ts = current_candle_ts
 
                 # -- 6. Log del ciclo --
                 target_rsi_str = f"<{dyn['rsi_oversold']:.1f} o >{RSI_OVERBOUGHT}"

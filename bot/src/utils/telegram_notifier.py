@@ -26,18 +26,24 @@ class TelegramNotifier:
         if not TELEGRAM_TOKEN or not TELEGRAM_ID:
             logging.warning("Telegram credentials not set. Notification skipped.")
             return
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {
-            "chat_id": TELEGRAM_ID,
-            "text": text,
-            "parse_mode": "Markdown"
-        }
-        try:
-            response = requests.post(url, json=payload, timeout=5)
-            if response.status_code != 200:
-                logging.error(f"Telegram error: {response.text}")
-        except Exception as e:
-            logging.error(f"Telegram exception: {e}")
+
+        def _send():
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            payload = {
+                "chat_id": TELEGRAM_ID,
+                "text": text,
+                "parse_mode": "Markdown"
+            }
+            try:
+                response = requests.post(url, json=payload, timeout=5)
+                if response.status_code != 200:
+                    logging.error(f"Telegram error: {response.text}")
+            except Exception as e:
+                logging.error(f"Telegram exception: {e}")
+
+        # Ejecutar en un hilo separado para no bloquear el ciclo principal del bot
+        import threading
+        threading.Thread(target=_send, daemon=True).start()
 
     # ─────────────────────────────────────────────────────────────────────────
     # Eventos inmediatos

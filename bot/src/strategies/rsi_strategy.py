@@ -103,6 +103,7 @@ class RSIStrategy:
             'ema_fast':     ema_fast_series.iloc[-1],
             'ema_slow':     ema_slow_series.iloc[-1],
             'volume_ratio': volume_ratio,
+            'timestamp':    df['ts'].iloc[-1],     # Timestamp de la vela actual
         }
 
     @staticmethod
