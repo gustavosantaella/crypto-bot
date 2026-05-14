@@ -79,7 +79,7 @@ def get_dynamic_params(ind: dict) -> dict:
         if ema_fast > ema_slow:
             # Tendencia ALCISTA fuerte: Permitir Longs exigentes, bloquear Shorts o hacerlos muy estrictos
             rsi_oversold    = max(RSI_OVERSOLD - 5.0, 20.0)    # Baja max 5 puntos (min 20)
-            rsi_overbought   = min(RSI_OVERBOUGHT + 5.0, 80.0)  # Shorts casi imposibles
+            rsi_overbought   = RSI_OVERBOUGHT  # Dejar en valor base (68)
             dca_min_drop    = min(DCA_MIN_DROP_PCT * 1.3, 0.05) # DCA más lejano
             dca_min_pump    = min(DCA_MIN_DROP_PCT * 1.5, 0.06)
             mode_label      = f'{BOT_MODE}/BULL_TREND'

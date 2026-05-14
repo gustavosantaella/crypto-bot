@@ -465,6 +465,7 @@ class BotEngine:
                     max_dca_orders=MAX_DCA_ORDERS if DCA_ENABLED else 1,
                     # Pasar parámetros dinámicos calculados en este ciclo
                     dyn_rsi_oversold=dyn['rsi_oversold'],
+                    dyn_rsi_overbought=dyn['rsi_overbought'],
                     dyn_dca_rsi_2=dyn['dca_rsi_level_2'],
                     dyn_dca_rsi_3=dyn['dca_rsi_level_3'],
                     dyn_dca_rsi_4=dyn['dca_rsi_level_4'],
@@ -480,18 +481,41 @@ class BotEngine:
                     log_price(SYMBOL, price, ind)
                     self.last_candle_ts = current_candle_ts
 
-                # -- 6. Log del ciclo --
-                target_rsi_str = f"<{dyn['rsi_oversold']:.1f} o >{RSI_OVERBOUGHT}"
+                # -- 6. Log del ciclo con distancias --
+                target_oversold = dyn['rsi_oversold']
+                target_overbought = dyn['rsi_overbought']
+                
                 if self.has_position:
                     if self.trade_type == "LONG":
-                        target_rsi_str = f">{RSI_OVERBOUGHT} (TP)"
+                        dist_rsi = target_overbought - rsi
+                        rsi_status = f"Falta {dist_rsi:.1f} para >{target_overbought:.1f}" if dist_rsi > 0 else "TP Alcanzado"
                     else:
-                        target_rsi_str = f"<{RSI_OVERSOLD} (TP)"
+                        dist_rsi = rsi - target_oversold
+                        rsi_status = f"Falta {dist_rsi:.1f} para <{target_oversold:.1f}" if dist_rsi > 0 else "TP Alcanzado"
+                else:
+                    dist_to_oversold = rsi - target_oversold
+                    dist_to_overbought = target_overbought - rsi
+                    
+                    if dist_to_oversold < dist_to_overbought:
+                        rsi_status = f"Falta {dist_to_oversold:.1f} para <{target_oversold:.1f}" if dist_to_oversold > 0 else "Entrada"
+                    else:
+                        rsi_status = f"Falta {dist_to_overbought:.1f} para >{target_overbought:.1f}" if dist_to_overbought > 0 else "Entrada"
+
+                # ADX
+                target_adx = 25.0
+                dist_adx = target_adx - adx
+                adx_status = f"Falta {dist_adx:.1f}" if dist_adx > 0 else "OK"
+
+                # Volumen
+                target_vol = 1.0
+                vol_ratio = ind.get('volume_ratio', 1.0)
+                dist_vol = target_vol - vol_ratio
+                vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"
 
                 logging.info(
-                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} (Esperando: {target_rsi_str}) | "
-                    f"ADX: {adx:.1f} | Vol: {ind['volume_ratio']:.2f}x | Signal: {signal} | "
-                    f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
+                    f"[{SYMBOL}] P: {price:.4f} | RSI: {rsi:.1f} ({rsi_status}) | "
+                    f"ADX: {adx:.1f} ({adx_status}) | Vol: {vol_ratio:.2f}x ({vol_status}) | "
+                    f"Signal: {signal} | DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
                 notify_price_update(SYMBOL, price, ind)

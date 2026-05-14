@@ -253,7 +253,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const isDowntrendHard = adx > 25 && minusDi >= plusDi;
 
     return [
-      { label: 'RSI Sobrevendido',     detail: 'RSI '      + rsi.toFixed(1)     + ' <= ' + this.currentRsiThreshold,                                           ok: rsi <= this.currentRsiThreshold },
+      { label: 'RSI (Long/Short)',     detail: 'Long: <= ' + this.currentRsiThreshold.toFixed(1) + ' | Short: >= 68.0', ok: rsi <= this.currentRsiThreshold || rsi >= 68 },
       { label: 'Contexto Alcista',     detail: 'Precio $'  + price.toFixed(2)   + ' > EMA200+0.3% $' + (emaSlow * 1.003).toFixed(2),                ok: price > (emaSlow * 1.003) },
       { label: 'Sin Tendencia Bajista',detail: isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte',                               ok: !isDowntrendHard },
       { label: 'Volumen Confirmado',   detail: vol.toFixed(2) + 'x del promedio >= 1.0x',                                              ok: vol >= 1.0 }
