@@ -113,6 +113,7 @@ class RSIStrategy:
                    dca_count=0, last_dca_price=None, max_dca_orders=3,
                    # Parámetros dinámicos — si no se pasan, se usan los valores del .env
                    dyn_rsi_oversold=None,
+                   dyn_rsi_overbought=None,
                    dyn_dca_rsi_2=None,
                    dyn_dca_rsi_3=None,
                    dyn_dca_rsi_4=None,
@@ -133,6 +134,7 @@ class RSIStrategy:
 
         # Usar parámetros dinámicos si se pasaron, si no usar los del .env como fallback
         effective_rsi_oversold = dyn_rsi_oversold if dyn_rsi_oversold is not None else RSI_OVERSOLD
+        effective_rsi_overbought = dyn_rsi_overbought if dyn_rsi_overbought is not None else RSI_OVERBOUGHT
         effective_sl_mult      = dyn_atr_sl_mult  if dyn_atr_sl_mult  is not None else ATR_SL_MULTIPLIER
         effective_tp_mult      = dyn_atr_tp_mult  if dyn_atr_tp_mult  is not None else ATR_TP_MULTIPLIER
         effective_dca_rsi_2    = dyn_dca_rsi_2    if dyn_dca_rsi_2    is not None else DCA_RSI_LEVEL_2
@@ -142,6 +144,13 @@ class RSIStrategy:
         # Distancias ASIMÉTRICAS calculadas con multiplicadores efectivos (dinámicos o base)
         sl_dist = atr * effective_sl_mult
         tp_dist = atr * effective_tp_mult
+
+        # Hard Stop Fallback (Punto 3 del usuario):
+        # Si el ATR da un valor muy loco (demasiado grande), limitamos el SL al porcentaje fijo del .env.
+        from src.config.trading_params import STOP_LOSS_PCT
+        hard_sl_dist = current_price * STOP_LOSS_PCT
+        if hard_sl_dist > 0 and sl_dist > hard_sl_dist:
+            sl_dist = hard_sl_dist
 
         # Banderas de tendencia
         is_strong_trend   = adx > ADX_THRESHOLD         # Hay tendencia fuerte
@@ -174,7 +183,7 @@ class RSIStrategy:
 
             # ── Señal SHORT ───────────────────────────────────────────────────
             # Aquí es donde aplicamos la "IA Inteligente" para no depender solo de ir en caída.
-            rsi_overbought   = rsi > RSI_OVERBOUGHT
+            rsi_overbought   = rsi > effective_rsi_overbought
             
             # 1. Condición Clásica: Solo si el precio ya está bajo la EMA200 (Mercado bajista)
             classic_short_ok = (current_price < ema_slow) and is_strong_trend and not is_uptrend_di
@@ -204,7 +213,7 @@ class RSIStrategy:
                 return 'SELL', None, None
 
             # RSI en sobrecompra extrema: el mercado podría revertir pronto
-            if rsi > RSI_OVERBOUGHT:
+            if rsi > effective_rsi_overbought:
                 return 'SELL', None, None
 
             # Prioridad 2: evaluar si agregar una entrada DCA adicional
