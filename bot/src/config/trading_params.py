@@ -126,5 +126,16 @@ if BOT_MODE == "SCALPING":
     DCA_RSI_LEVEL_4 = 20.0
     
     print(f"🚀 MODO DE OPERACIÓN: SCALPING (Micro-ganancias) activado.")
+elif BOT_MODE == "AGRESIVE_MEDIUM":
+    # Modo intermedio entre Conservador y Scalping (Usa lógica dinámica)
+    RSI_OVERSOLD = 32.5          # Intermedio entre 30 y 35
+    ATR_TP_MULTIPLIER = 1.8      # Intermedio entre 2.5 y 1.0
+    ATR_SL_MULTIPLIER = 1.35     # Intermedio entre 1.5 y 1.2
+    DCA_MIN_DROP_PCT = 0.015     # Intermedio entre 0.02 y 0.01
+    DCA_RSI_LEVEL_2 = 27.5       # Intermedio entre 25 y 30
+    DCA_RSI_LEVEL_3 = 22.5       # Intermedio entre 20 y 25
+    DCA_RSI_LEVEL_4 = 17.5       # Intermedio entre 15 y 20
+    
+    print(f"⚖️ MODO DE OPERACIÓN: AGRESIVE_MEDIUM (Medio agresivo pero conservativo) activado.")
 else:
     print(f"🛡️ MODO DE OPERACIÓN: CONSERVATIVE activado.")

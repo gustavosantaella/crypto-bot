@@ -68,7 +68,7 @@ def get_dynamic_params(ind: dict) -> dict:
         dca_rsi_2       = min(DCA_RSI_LEVEL_2 + 3.0, 35.0)  # DCA más accesible
         dca_rsi_3       = min(DCA_RSI_LEVEL_3 + 3.0, 28.0)
         dca_rsi_4       = min(DCA_RSI_LEVEL_4 + 3.0, 23.0)
-        mode_label      = 'CONSERVATIVE/LATERAL'
+        mode_label      = f'{BOT_MODE}/LATERAL'
 
     elif adx >= ADX_THRESHOLD:
         # Tendencia activa y fuerte
@@ -82,14 +82,14 @@ def get_dynamic_params(ind: dict) -> dict:
             rsi_overbought   = min(RSI_OVERBOUGHT + 5.0, 80.0)  # Shorts casi imposibles
             dca_min_drop    = min(DCA_MIN_DROP_PCT * 1.3, 0.05) # DCA más lejano
             dca_min_pump    = min(DCA_MIN_DROP_PCT * 1.5, 0.06)
-            mode_label      = 'CONSERVATIVE/BULL_TREND'
+            mode_label      = f'{BOT_MODE}/BULL_TREND'
         else:
             # Tendencia BAJISTA fuerte: ¡Bloquear Longs! (Punto 1). Relajar Shorts
             rsi_oversold    = 0.0  # Bloquea compras por completo!
             rsi_overbought   = max(RSI_OVERBOUGHT - 5.0, 55.0)  # Shorts más accesibles
             dca_min_drop    = min(DCA_MIN_DROP_PCT * 1.5, 0.06)
             dca_min_pump    = max(DCA_MIN_DROP_PCT * 0.8, 0.01) # DCA para shorts más cercano
-            mode_label      = 'CONSERVATIVE/BEAR_TREND'
+            mode_label      = f'{BOT_MODE}/BEAR_TREND'
 
         dca_rsi_2       = max(DCA_RSI_LEVEL_2 - 3.0, 18.0)  # DCA más exigente
         dca_rsi_3       = max(DCA_RSI_LEVEL_3 - 3.0, 14.0)
@@ -106,7 +106,7 @@ def get_dynamic_params(ind: dict) -> dict:
         dca_rsi_2       = DCA_RSI_LEVEL_2
         dca_rsi_3       = DCA_RSI_LEVEL_3
         dca_rsi_4       = DCA_RSI_LEVEL_4
-        mode_label      = 'CONSERVATIVE/NEUTRAL'
+        mode_label      = f'{BOT_MODE}/NEUTRAL'
 
     return {
         'rsi_oversold':    rsi_oversold,
