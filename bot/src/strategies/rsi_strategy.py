@@ -181,11 +181,14 @@ class RSIStrategy:
             # 1. Condición Clásica: Solo si el precio ya está bajo la EMA200 (Mercado bajista)
             classic_short_ok = (current_price < ema_slow) and is_strong_trend and not is_uptrend_di
             
-            # 2. Condición Inteligente (IA): Si el precio está arriba de la EMA200 (Mercado alcista o lateral),
-            # permitimos short SOLO si la IA predice SHORT con buena precisión (>= 60%) y el RSI está sobrecomprado.
-            ai_short_ok = (ai_label == -1 and ai_accuracy >= 0.60)
+            # 2. Condición Inteligente basada puramente en el Mercado (Sin IA):
+            # Si el precio está ARRIBA de la EMA200 (Mercado alcista o lateral), permitimos short si:
+            # - El RSI está sobrecomprado (ya se cumple por la condición padre).
+            # - El RSI está girando hacia abajo (rsi < rsi_prev), confirmando pérdida de fuerza.
+            # - La presión vendedora supera a la compradora (minus_di > plus_di).
+            market_short_ok = (current_price >= ema_slow) and (rsi < rsi_prev) and (minus_di > plus_di)
 
-            if rsi_overbought and (classic_short_ok or ai_short_ok):
+            if rsi_overbought and (classic_short_ok or market_short_ok):
                 tp = current_price - tp_dist
                 sl = current_price + sl_dist
                 return 'SELL_SHORT', tp, sl
