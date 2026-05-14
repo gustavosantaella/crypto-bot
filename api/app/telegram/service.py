@@ -239,52 +239,106 @@ class TelegramBot:
                     msg += f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
                     msg += f"🔍 *Condiciones para Entrar:*\n"
                     
+                    # Leer valores de entorno con los mismos defaults que el bot
+                    RSI_OVERSOLD = float(os.getenv("RSI_OVERSOLD", 30.0))
+                    RSI_OVERBOUGHT = float(os.getenv("RSI_OVERBOUGHT", 68.0))
+                    ADX_THRESHOLD = float(os.getenv("ADX_THRESHOLD", 25.0))
+                    BOT_MODE = os.getenv("BOT_MODE", "CONSERVATIVE").upper()
+                    
+                    ema_fast = float(last_price.ema_fast) if last_price.ema_fast else 0
+                    
+                    # Calcular parámetros dinámicos (réplica de parameter_adapter.py)
+                    if BOT_MODE == "SCALPING":
+                        umbral = 35.0
+                        umbral_short = RSI_OVERBOUGHT
+                        mode_label = "SCALPING"
+                    elif adx < 20.0:
+                        umbral = min(RSI_OVERSOLD + 5.0, 40.0)
+                        umbral_short = max(RSI_OVERBOUGHT - 5.0, 55.0)
+                        mode_label = f"{BOT_MODE}/LATERAL"
+                    elif adx >= ADX_THRESHOLD:
+                        if ema_fast > ema_slow:
+                            umbral = max(RSI_OVERSOLD - 5.0, 20.0)
+                            umbral_short = RSI_OVERBOUGHT
+                            mode_label = f"{BOT_MODE}/BULL_TREND"
+                        else:
+                            umbral = 0.0 # Bloquea compras
+                            umbral_short = max(RSI_OVERBOUGHT - 5.0, 55.0)
+                            mode_label = f"{BOT_MODE}/BEAR_TREND"
+                    else:
+                        umbral = RSI_OVERSOLD
+                        umbral_short = RSI_OVERBOUGHT
+                        mode_label = f"{BOT_MODE}/NEUTRAL"
+                        
+                    looking_for_short = rsi > 50
+                    
+                    msg += f"🔍 *Buscando Señal (Mostrando más cercana):*\n"
+                    msg += f"🧠 *Modo adaptador:* `{mode_label}`\n"
+                    if looking_for_short:
+                        msg += f"🔸 *Dirección:* `SHORT`\n"
+                    else:
+                        msg += f"🔸 *Dirección:* `LONG`\n"
                     conditions_count = 0
                     
                     # 1. Check RSI
-                    umbral = 25.0  # Default or derived
-                    umbral_short = float(os.getenv("RSI_OVERBOUGHT", 70.0))
-                    
-                    rsi_long_ok = rsi < umbral
-                    rsi_short_ok = rsi > umbral_short
-                    
-                    if rsi_long_ok:
-                        msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
-                        conditions_count += 1
-                    elif rsi_short_ok:
-                        msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
-                        conditions_count += 1
-                    else:
-                        msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f} para LONG o > {umbral_short:.0f} para SHORT)\n"
-                        
-                    # 2. Check EMA200 (Contexto Alcista)
-                    if ema_slow > 0:
-                        req_price = ema_slow * 1.003
-                        if price <= req_price:
-                            msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
-                        else:
-                            msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+                    if looking_for_short:
+                        if rsi > umbral_short:
+                            msg += f"✅ *RSI:* `{rsi:.1f}` (> {umbral_short:.0f} para SHORT)\n"
                             conditions_count += 1
+                        else:
+                            msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser > {umbral_short:.0f})\n"
+                    else:
+                        if rsi < umbral:
+                            msg += f"✅ *RSI:* `{rsi:.1f}` (< {umbral:.0f} para LONG)\n"
+                            conditions_count += 1
+                        else:
+                            msg += f"❌ *RSI:* `{rsi:.1f}` (Debe ser < {umbral:.0f})\n"
+                            
+                    # 2. Check Contexto (EMA200)
+                    if ema_slow > 0:
+                        if looking_for_short:
+                            req_price = ema_slow * 0.997
+                            if price >= req_price:
+                                msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser < `${req_price:.2f}` [EMA200-0.3%])\n"
+                            else:
+                                msg += f"✅ *Contexto:* Bajista (`${price:.2f}` < `${req_price:.2f}`)\n"
+                                conditions_count += 1
+                        else:
+                            req_price = ema_slow * 1.003
+                            if price <= req_price:
+                                msg += f"❌ *Contexto:* `${price:.2f}` (Debe ser > `${req_price:.2f}` [EMA200+0.3%])\n"
+                            else:
+                                msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+                                conditions_count += 1
                     
-                    # 3. Check Sin Tendencia Bajista (ADX + DI)
+                    # 3. Check Tendencia (ADX + DI)
                     plus_di = float(last_price.plus_di) if last_price.plus_di else 0
                     minus_di = float(last_price.minus_di) if last_price.minus_di else 0
-                    is_downtrend_hard = adx > 25 and minus_di >= plus_di
                     
-                    if is_downtrend_hard:
-                        msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+                    if looking_for_short:
+                        is_uptrend_hard = adx > 25 and plus_di >= minus_di
+                        if is_uptrend_hard:
+                            msg += f"❌ *Tendencia:* Alcista fuerte detectada (ADX={adx:.1f}, DI+ >= DI-)\n"
+                        else:
+                            msg += f"✅ *Tendencia:* Sin tendencia alcista fuerte\n"
+                            conditions_count += 1
                     else:
-                        msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
-                        conditions_count += 1
-
+                        is_downtrend_hard = adx > 25 and minus_di >= plus_di
+                        if is_downtrend_hard:
+                            msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- >= DI+)\n"
+                        else:
+                            msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
+                            conditions_count += 1
+                            
                     # 4. Check Volumen Confirmado
-                    vol = float(last_price.volume_ratio) if last_price.volume_ratio else 0
+                    vol = float(last_price.volume_ratio) if last_price.volume_ratio else 0.0
+                    
                     if vol < 1.0:
                         msg += f"❌ *Volumen:* `{vol:.2f}x` (Debe ser >= 1.0x)\n"
                     else:
                         msg += f"✅ *Volumen:* `{vol:.2f}x` (>= 1.0x)\n"
                         conditions_count += 1
-
+                        
                     msg += f"📊 *Cumplidas:* `{conditions_count}/4` condiciones\n"
 
                     if conditions_count == 4:
