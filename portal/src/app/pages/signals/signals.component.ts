@@ -220,25 +220,38 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     return p > e ? 'var(--success)' : 'var(--danger)';
   }
 
-  get currentRsiThreshold(): number {
-    const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
+  get dynamicThresholds(): { long: number, short: number } {
+    const rsiOversold = 30.0;
+    const rsiOverbought = 70.0;
+    const adxThreshold = 25.0;
+    
     const adx = parseFloat(this.live?.adx) || 0;
-    if (adx >= 25) {
-      return Math.max(baseRsi - 5, 20); // Trending market: more strict
-    } else if (adx < 20) {
-      return Math.min(baseRsi + 5, 40); // Lateral market: matches Python clamping
+    const emaFast = parseFloat(this.live?.ema_fast) || 0;
+    const emaSlow = parseFloat(this.live?.ema_slow) || 0;
+    
+    let umbralLong = rsiOversold;
+    let umbralShort = rsiOverbought;
+    
+    if (adx < 20.0) {
+      umbralLong = Math.min(rsiOversold + 5.0, 40.0);
+      umbralShort = Math.max(rsiOverbought - 5.0, 55.0);
+    } else if (adx >= adxThreshold) {
+      if (emaFast > emaSlow) {
+        umbralLong = Math.max(rsiOversold - 5.0, 20.0);
+        umbralShort = rsiOverbought;
+      } else {
+        umbralLong = 0.0;
+        umbralShort = Math.max(rsiOverbought - 5.0, 55.0);
+      }
     }
-    return baseRsi; // Neutral market
+    
+    return { long: umbralLong, short: umbralShort };
   }
 
-  getHistoricalRsiThreshold(adxValue: number): number {
-    const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
-    if (adxValue >= 25) {
-      return Math.max(baseRsi - 5, 20);
-    } else if (adxValue < 20) {
-      return Math.min(baseRsi + 5, 40);
-    }
-    return baseRsi;
+  get currentRsiThreshold(): number {
+    const thresholds = this.dynamicThresholds;
+    const rsi = parseFloat(this.live?.rsi) || 50;
+    return rsi > 50 ? thresholds.short : thresholds.long;
   }
 
   get conditions(): { label: string; detail: string; ok: boolean }[] {
@@ -250,16 +263,71 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const plusDi  = parseFloat(this.live?.plus_di)       || 0;
     const minusDi = parseFloat(this.live?.minus_di)      || 0;
 
-    const isDowntrendHard = adx > 25 && minusDi >= plusDi;
+    const lookingForShort = rsi > 50;
+    const thresholds = this.dynamicThresholds;
+    
+    // 1. RSI
+    const umbralLong = thresholds.long;
+    const umbralShort = thresholds.short;
+    
+    const isRsiOk = lookingForShort ? (rsi > umbralShort) : (rsi < umbralLong);
+    const rsiDetail = lookingForShort 
+        ? `RSI ${rsi.toFixed(1)} > ${umbralShort.toFixed(1)} (Short)` 
+        : `RSI ${rsi.toFixed(1)} < ${umbralLong.toFixed(1)} (Long)`;
+
+    // 2. Contexto (EMA200)
+    let isContextOk = false;
+    let contextDetail = '';
+    const contextLabel = lookingForShort ? 'Contexto Bajista' : 'Contexto Alcista';
+    if (emaSlow > 0) {
+      if (lookingForShort) {
+        const reqPrice = emaSlow * 0.997;
+        isContextOk = price < reqPrice;
+        contextDetail = `Precio $${price.toFixed(2)} < EMA200-0.3% $${reqPrice.toFixed(2)}`;
+      } else {
+        const reqPrice = emaSlow * 1.003;
+        isContextOk = price > reqPrice;
+        contextDetail = `Precio $${price.toFixed(2)} > EMA200+0.3% $${reqPrice.toFixed(2)}`;
+      }
+    } else {
+        contextDetail = 'Esperando datos de EMA200...';
+    }
+
+    // 3. Tendencia
+    let isTrendOk = false;
+    let trendDetail = '';
+    const trendLabel = lookingForShort ? 'Sin Tendencia Alcista' : 'Sin Tendencia Bajista';
+    if (lookingForShort) {
+      const isUptrendHard = adx > 25 && plusDi >= minusDi;
+      isTrendOk = !isUptrendHard;
+      trendDetail = isUptrendHard ? 'Tendencia alcista fuerte detectada' : 'Sin tendencia alcista fuerte';
+    } else {
+      const isDowntrendHard = adx > 25 && minusDi >= plusDi;
+      isTrendOk = !isDowntrendHard;
+      trendDetail = isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte';
+    }
+
+    // 4. Volumen
+    const isVolOk = vol >= 1.0;
+    const volDetail = `${vol.toFixed(2)}x del promedio >= 1.0x`;
 
     return [
-      { label: 'RSI (Long/Short)',     detail: 'Long: <= ' + this.currentRsiThreshold.toFixed(1) + ' | Short: >= 68.0', ok: rsi <= this.currentRsiThreshold || rsi >= 68 },
-      { label: 'Contexto Alcista',     detail: 'Precio $'  + price.toFixed(2)   + ' > EMA200+0.3% $' + (emaSlow * 1.003).toFixed(2),                ok: price > (emaSlow * 1.003) },
-      { label: 'Sin Tendencia Bajista',detail: isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte',                               ok: !isDowntrendHard },
-      { label: 'Volumen Confirmado',   detail: vol.toFixed(2) + 'x del promedio >= 1.0x',                                              ok: vol >= 1.0 }
+      { label: `RSI (${lookingForShort ? 'Short' : 'Long'})`, detail: rsiDetail, ok: isRsiOk },
+      { label: contextLabel, detail: contextDetail, ok: isContextOk },
+      { label: trendLabel, detail: trendDetail, ok: isTrendOk },
+      { label: 'Volumen Confirmado', detail: volDetail, ok: isVolOk }
     ];
   }
-
+  
+  getHistoricalRsiThreshold(adxValue: number): number {
+    const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
+    if (adxValue >= 25) {
+      return Math.max(baseRsi - 5, 20);
+    } else if (adxValue < 20) {
+      return Math.min(baseRsi + 5, 40);
+    }
+    return baseRsi;
+  }
   get conditionsMet(): number { return this.conditions.filter(c => c.ok).length; }
   get allConditionsMet(): boolean { return this.conditionsMet === 4; }
 

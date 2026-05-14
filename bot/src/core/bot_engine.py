@@ -513,10 +513,19 @@ class BotEngine:
                 vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"
 
                 # Evaluar las 4 condiciones del portal para el log
-                cond_rsi = (rsi <= dyn['rsi_oversold'] or rsi >= dyn['rsi_overbought'])
-                cond_context = price > (ind.get('ema_slow', 0) * 1.003)
-                is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) >= ind.get('plus_di', 0)
-                cond_trend = not is_downtrend_hard
+                looking_for_short = rsi > 50
+                
+                if looking_for_short:
+                    cond_rsi = rsi > dyn['rsi_overbought']
+                    cond_context = price < (ind.get('ema_slow', 0) * 0.997)
+                    is_uptrend_hard = adx > 25 and ind.get('plus_di', 0) >= ind.get('minus_di', 0)
+                    cond_trend = not is_uptrend_hard
+                else:
+                    cond_rsi = rsi < dyn['rsi_oversold']
+                    cond_context = price > (ind.get('ema_slow', 0) * 1.003)
+                    is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) >= ind.get('plus_di', 0)
+                    cond_trend = not is_downtrend_hard
+                    
                 cond_vol = vol_ratio >= 1.0
                 
                 conditions_met_count = sum([cond_rsi, cond_context, cond_trend, cond_vol])
