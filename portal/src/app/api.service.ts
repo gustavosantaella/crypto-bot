@@ -21,6 +21,7 @@ export class ApiService {
   getPriceLogs(skip=0, limit=100):  Observable<any>    { return this.http.get<any>(`${this.apiUrl}/status/prices?skip=${skip}&limit=${limit}`); }
   analyzeWithAI(data: any):         Observable<any>    { return this.http.post<any>(`${this.apiUrl}/ai/analyze`, data); }
   getLocalAiPrediction(lookAhead=5, k=5): Observable<any> { return this.http.get<any>(`${this.apiUrl}/local-ai/predict?look_ahead=${lookAhead}&k=${k}`); }
+  forceTrade(data: any):            Observable<any>    { return this.http.post<any>(`${this.apiUrl}/trades/force`, data); }
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   getStatsSummary():                Observable<any>    { return this.http.get<any>(`${this.apiUrl}/stats/summary`); }

@@ -4,13 +4,14 @@ import { Router } from '@angular/router';
 import { ApiService } from '../../api.service';
 import { WebsocketService } from '../../websocket.service';
 import { interval, Subscription } from 'rxjs';
+import { ConfirmationModalComponent } from '../../components/confirmation-modal';
 
 declare var Chart: any;
 
 @Component({
   selector: 'app-signals',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ConfirmationModalComponent],
   template: `
 <div class="page-wrapper">
   <header class="page-header">
@@ -114,6 +115,31 @@ declare var Chart: any;
     </div>
   </div>
 
+  <!-- Manual Control Card -->
+  <div class="glass-card" style="margin-top:1rem;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <h3 style="color:var(--text-muted);margin:0 0 0.25rem;font-size:.9rem;text-transform:uppercase;letter-spacing:1px;">Control Manual</h3>
+      <p style="color:var(--text-muted);font-size:.7rem;margin:0;">Fuerza una entrada omitiendo las reglas del bot.</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <button (click)="forceTradeAction('BUY')" class="btn-primary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;background:linear-gradient(135deg,#10b981,#059669);border:none;">
+        Forzar LONG
+      </button>
+      <button (click)="forceTradeAction('SELL')" class="btn-primary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;background:linear-gradient(135deg,#ef4444,#dc2626);border:none;">
+        Forzar SHORT
+      </button>
+    </div>
+  </div>
+
+  <app-confirmation-modal 
+    *ngIf="showModal" 
+    [message]="modalMessage" 
+    [details]="modalDetails" 
+    [confirmColor]="modalConfirmColor" 
+    (close)="showModal=false" 
+    (confirm)="executeForcedTrade()">
+  </app-confirmation-modal>
+
   <!-- RSI + Price Chart -->
   <div class="glass-card" style="margin-top:1.5rem;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem;">
@@ -148,6 +174,13 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   aiAccuracy: number = 0;
   aiRecommendedRsi: number | null = null;
   aiLoading: boolean = false;
+
+  // Modal properties
+  showModal: boolean = false;
+  modalMessage: string = '';
+  modalDetails: string = '';
+  modalConfirmColor: string = '';
+  pendingTradeData: any = null;
 
   get activeSymbol(): string {
     return this.live?.symbol || 'CRYPTO';
@@ -218,6 +251,58 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         console.error(err);
         this.aiLoading = false;
         this.cdr.detectChanges();
+      }
+    });
+  }
+
+  forceTradeAction(side: string) {
+    const price = parseFloat(this.live?.price);
+    const atr = parseFloat(this.live?.atr);
+    const symbol = this.live?.symbol || 'SOLUSDT';
+    
+    if (!price || !atr) {
+      alert('Faltan datos de precio o ATR para calcular SL/TP');
+      return;
+    }
+    
+    const slMult = 1.1;
+    const tpMult = 1.2;
+    
+    let sl = 0;
+    let tp = 0;
+    
+    if (side === 'BUY') {
+      sl = price - (atr * slMult);
+      tp = price + (atr * tpMult);
+    } else {
+      sl = price + (atr * slMult);
+      tp = price - (atr * tpMult);
+    }
+    
+    const quantity = 0.1; // Cantidad por defecto
+    
+    this.pendingTradeData = { symbol, side, quantity, sl, tp };
+    
+    this.modalMessage = `¿Estás seguro de que deseas forzar una operación en ${side === 'BUY' ? 'LONG' : 'SHORT'}?`;
+    this.modalDetails = `Símbolo: ${symbol}\nCantidad: ${quantity}\nPrecio Aprox: $${price.toFixed(2)}\nSL: $${sl.toFixed(2)}\nTP: $${tp.toFixed(2)}`;
+    this.modalConfirmColor = side === 'BUY' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)';
+    this.showModal = true;
+  }
+
+  executeForcedTrade() {
+    if (!this.pendingTradeData) return;
+    
+    this.showModal = false;
+    
+    this.api.forceTrade(this.pendingTradeData).subscribe({
+      next: (res: any) => {
+        alert(`Orden forzada con éxito: ${this.pendingTradeData.side}\nSL: ${this.pendingTradeData.sl.toFixed(2)}\nTP: ${this.pendingTradeData.tp.toFixed(2)}`);
+        this.pendingTradeData = null;
+      },
+      error: (err) => {
+        console.error(err);
+        alert('Error al forzar orden');
+        this.pendingTradeData = null;
       }
     });
   }
