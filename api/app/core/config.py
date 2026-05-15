@@ -15,8 +15,27 @@ except ImportError:
             # Fallback final si todo falla (poco probable)
             from pydantic import BaseModel as BaseSettings
 
-env_file = os.getenv("ENV_FILE", ".env")
-load_dotenv(env_file)
+# Ruta absoluta al directorio environments/ (dos niveles arriba de este archivo)
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ENVIRONMENTS_DIR = os.path.abspath(os.path.join(_HERE, '../../environments'))
+
+# 1. Cargar SIEMPRE el .env principal (contiene BINANCE_API_KEY, BINANCE_SECRET_KEY, TELEGRAM, etc.)
+_main_env = os.path.join(_ENVIRONMENTS_DIR, '.env')
+if os.path.isfile(_main_env):
+    load_dotenv(_main_env, override=False)
+
+# 2. Superponer el .env de moneda si se especificó via ENV_FILE o SYMBOL
+_env_file_arg = os.getenv("ENV_FILE", "")
+if _env_file_arg and os.path.isfile(_env_file_arg):
+    load_dotenv(_env_file_arg, override=True)
+else:
+    # Detectar por SYMBOL (ya cargado del .env principal)
+    coin_symbol = os.getenv("SYMBOL", "")
+    coin_part = coin_symbol.replace('USDT', '').replace('USD', '').lower()
+    if coin_part:
+        coin_env_path = os.path.join(_ENVIRONMENTS_DIR, f'.{coin_part}.env')
+        if os.path.isfile(coin_env_path):
+            load_dotenv(coin_env_path, override=True)
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Crypto Bot API"

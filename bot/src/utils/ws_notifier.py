@@ -33,23 +33,26 @@ def notify_price_update(symbol: str, price: float, indicators: dict):
       volume_ratio → Volumen actual vs promedio
     """
     notify_ws("PRICE_UPDATE", {
-        "symbol":       symbol,
-        "price":        price,
+        "symbol":           symbol,
+        "price":            price,
         # RSI
-        "rsi":          round(indicators.get("rsi", 0), 2),
-        "rsi_prev":     round(indicators.get("rsi_prev", 0), 2),
+        "rsi":              round(indicators.get("rsi", 0), 2),
+        "rsi_prev":         round(indicators.get("rsi_prev", 0), 2),
+        # Umbrales de configuración (leídos del .env activo)
+        "rsi_oversold":     indicators.get("rsi_oversold", 35.0),
+        "rsi_overbought":   indicators.get("rsi_overbought", 68.0),
         # Tendencia
-        "adx":          round(indicators.get("adx", 0), 2),
-        "plus_di":      round(indicators.get("plus_di", 0), 2),
-        "minus_di":     round(indicators.get("minus_di", 0), 2),
+        "adx":              round(indicators.get("adx", 0), 2),
+        "plus_di":          round(indicators.get("plus_di", 0), 2),
+        "minus_di":         round(indicators.get("minus_di", 0), 2),
         # EMAs
-        "ema_fast":     round(indicators.get("ema_fast", 0), 4),
-        "ema200":       round(indicators.get("ema_slow", 0), 4),   # alias para el portal
+        "ema_fast":         round(indicators.get("ema_fast", 0), 4),
+        "ema200":           round(indicators.get("ema_slow", 0), 4),   # alias para el portal
         # Volatilidad y volumen
-        "atr":          round(indicators.get("atr", 0), 4),
-        "volume_ratio": round(indicators.get("volume_ratio", 0), 4),
+        "atr":              round(indicators.get("atr", 0), 4),
+        "volume_ratio":     round(indicators.get("volume_ratio", 0), 4),
         # Timestamp (el portal usa la hora local si es None)
-        "timestamp":    None
+        "timestamp":        None
     })
 
 

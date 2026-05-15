@@ -251,6 +251,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
           symbol: data.symbol,
           price: parseFloat(data.price),
           rsi: parseFloat(data.rsi),
+          rsi_oversold:  parseFloat(data.rsi_oversold  || '35'),
+          rsi_overbought: parseFloat(data.rsi_overbought || '68'),
           rsi_prev: parseFloat(data.rsi_prev || '50'),
           ema_slow: parseFloat(data.ema200 || '0'),
           ema_fast: parseFloat(data.ema_fast || '0'),
@@ -404,26 +406,10 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get dynamicThresholds(): { long: number, short: number } {
-    const rsiOversold = 32.0;
-    const rsiOverbought = 68.0;
-    
-    const adx = parseFloat(this.live?.adx) || 0;
-    const emaFast = parseFloat(this.live?.ema_fast) || 0;
-    const emaSlow = parseFloat(this.live?.ema_slow) || 0;
-    
-    let umbralLong = rsiOversold;
-    let umbralShort = rsiOverbought;
-    
-    // Modo AGGRESSIVE
-    if (adx > 45.0) {
-      if (emaFast > emaSlow) {
-        umbralLong = 0.0; // Bloquea compras en tendencia alcista extrema
-      } else {
-        umbralShort = 100.0; // Bloquea ventas en tendencia bajista extrema
-      }
-    }
-    
-    return { long: umbralLong, short: umbralShort };
+    // Leer del WebSocket en tiempo real (el bot envía los umbrales activos del .env)
+    const rsiOversold   = parseFloat(this.live?.rsi_oversold)  || 35.0;
+    const rsiOverbought = parseFloat(this.live?.rsi_overbought) || 68.0;
+    return { long: rsiOversold, short: rsiOverbought };
   }
 
   get currentRsiThreshold(): number {
@@ -459,11 +445,15 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const contextLabel = lookingForShort ? 'Giro Bajista' : 'Contexto Alcista';
     
     if (lookingForShort) {
-        // Top-catching short
-        const rsiPrev = parseFloat(this.logs.length > 1 ? this.logs[this.logs.length - 2].rsi : rsi) || 50;
-        const momentumAgotado = (rsi < rsiPrev) && (minusDi >= plusDi);
+        // Top-catching short: basta presión vendedora OR RSI cayendo (igual que la estrategia)
+        const rsiPrev = parseFloat(this.live?.rsi_prev) || parseFloat(this.logs.length > 1 ? this.logs[this.logs.length - 2]?.rsi : rsi) || 50;
+        const bearishPressure = minusDi >= plusDi;
+        const rsiFalling      = rsi < rsiPrev;
+        const momentumAgotado = bearishPressure || rsiFalling;
         isContextOk = momentumAgotado;
-        contextDetail = momentumAgotado ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'Esperando caída de RSI y presión vendedora';
+        contextDetail = momentumAgotado
+          ? (bearishPressure ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'RSI girando a la baja')
+          : 'Esperando DI- >= DI+ o RSI cayendo';
     } else {
         isContextOk = true;
         contextDetail = 'Filtro de EMA desactivado';
@@ -508,11 +498,12 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         ok: isTrendOk,
         tooltip: 'Mide la fuerza de la tendencia mediante el ADX. Si la tendencia en contra es demasiado fuerte (ADX > 45), se bloquea la operación por seguridad.'
       },
+      // Volumen — solo informativo, no bloquea entrada
       { 
-        label: 'Volumen Confirmado', 
-        detail: volDetail, 
-        ok: isVolOk,
-        tooltip: 'Compara el volumen actual con la media móvil del volumen. Asegura que el movimiento tenga suficiente participación de mercado.'
+        label: 'Volumen', 
+        detail: `${vol.toFixed(2)}x del promedio (informativo)`, 
+        ok: true,
+        tooltip: 'El volumen se muestra como información adicional pero no bloquea la entrada.'
       }
     ];
   }
@@ -527,7 +518,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     return baseRsi;
   }
   get conditionsMet(): number { return this.conditions.filter(c => c.ok).length; }
-  get allConditionsMet(): boolean { return this.conditionsMet === 4; }
+  get allConditionsMet(): boolean { return this.conditionsMet >= 3; }
 
   private initCharts() {
     this.buildSignalChart();

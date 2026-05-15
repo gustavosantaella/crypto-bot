@@ -501,22 +501,19 @@ class BotEngine:
                     else:
                         rsi_status = f"Falta {dist_to_overbought:.1f} para >{target_overbought:.1f}" if dist_to_overbought > 0 else "Entrada"
 
-                # ADX
-                target_adx = 45.0 if dyn['mode_active'] == 'AGGRESSIVE' else 25.0
-                # Si ADX es menor a 45 (en agresivo) o 25 (conservador), está OK.
-                # Si es mayor, podría bloquear si va contra tendencia, pero el status simple es:
+                                # ADX
+                target_adx = 30.0 if dyn['mode_active'] == 'AGGRESSIVE' else 20.0  # más permisivo
+                # Si ADX es menor al target, está OK; si es mayor, sigue permitiendo la operación en modo conservador.
                 adx_status = "EXTREMO" if adx > target_adx else "OK"
 
-                # Volumen
-                target_vol = 1.0
+                # Volumen (solo informativo, no bloquea la entrada)
                 vol_ratio = ind.get('volume_ratio', 1.0)
-                dist_vol = target_vol - vol_ratio
-                vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"
+                vol_status = f"{vol_ratio:.2f}x del promedio"
 
                 # Evaluar las 4 condiciones del portal para el log
                 looking_for_short = rsi > 50
                 
-                cond_vol = vol_ratio >= 1.0
+                cond_vol = True  # Volumen desactivado como condición de entrada
                 
                 if looking_for_short:
                     cond_rsi = rsi > dyn['rsi_overbought']
@@ -532,12 +529,9 @@ class BotEngine:
                     cond_trend = not is_uptrend_hard
                 else:
                     cond_rsi = rsi < dyn['rsi_oversold']
-                    if dyn['mode_active'] == 'AGGRESSIVE':
-                        cond_context = True # EMA200 desactivado
-                        is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
-                    else:
-                        cond_context = True # EMA desactivado a petición del usuario
-                        is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
+                    # Umbral unificado: solo bloquear LONG si ADX > 45 (igual que estrategia y portal)
+                    cond_context = True  # EMA desactivado a petición del usuario
+                    is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     cond_trend = not is_downtrend_hard
                     
                 conditions_met_count = sum([cond_rsi, cond_context, cond_trend, cond_vol])
@@ -548,6 +542,9 @@ class BotEngine:
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
+                # Añadir umbrales activos al payload para que el portal los muestre correctamente
+                ind['rsi_oversold']   = dyn.get('rsi_oversold', RSI_OVERSOLD)
+                ind['rsi_overbought'] = dyn.get('rsi_overbought', RSI_OVERBOUGHT)
                 notify_price_update(SYMBOL, price, ind)
 
                 # -- 7. Resumen periódico de estado a Telegram (cada 5 min) ------

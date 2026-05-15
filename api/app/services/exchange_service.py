@@ -1,6 +1,13 @@
 from binance.client import Client
+import os
 import time
-from app.core.config import settings
+from dotenv import load_dotenv
+
+# Asegurar que el .env principal siempre esté cargado antes de usar las keys
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_MAIN_ENV = os.path.abspath(os.path.join(_HERE, '../../../environments/.env'))
+if os.path.isfile(_MAIN_ENV):
+    load_dotenv(_MAIN_ENV, override=False)
 
 class ExchangeService:
     def __init__(self):
@@ -9,11 +16,16 @@ class ExchangeService:
 
     def _initialize_client(self):
         try:
-            self.client = Client(
-                settings.BINANCE_API_KEY, 
-                settings.BINANCE_SECRET_KEY, 
-                testnet=settings.IS_TESTNET
-            )
+            # Leer keys en tiempo de ejecución (no en importación) para garantizar que .env ya fue cargado
+            api_key    = os.getenv("BINANCE_API_KEY", "")
+            secret_key = os.getenv("BINANCE_SECRET_KEY", "")
+            is_testnet = str(os.getenv("IS_TESTNET", "True")).lower() == "true"
+
+            if not api_key or not secret_key:
+                print("ExchangeService: BINANCE_API_KEY o BINANCE_SECRET_KEY no definidos.")
+                return
+
+            self.client = Client(api_key, secret_key, testnet=is_testnet)
             self._sync_time()
         except Exception as e:
             print(f"Error initializing Binance Client: {e}")

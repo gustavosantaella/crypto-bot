@@ -10,5 +10,7 @@ __pycache__/
 *.db
 *.log
 .pids
-environments
 copy-envs
+
+# Solo el .env principal queda excluido (contiene API keys y credenciales)
+environments/.env
