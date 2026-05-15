@@ -529,12 +529,9 @@ class BotEngine:
                     cond_trend = not is_uptrend_hard
                 else:
                     cond_rsi = rsi < dyn['rsi_oversold']
-                    if dyn['mode_active'] == 'AGGRESSIVE':
-                        cond_context = True # EMA200 desactivado
-                        is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
-                    else:
-                        cond_context = True # EMA desactivado a petición del usuario
-                        is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
+                    # Umbral unificado: solo bloquear LONG si ADX > 45 (igual que estrategia y portal)
+                    cond_context = True  # EMA desactivado a petición del usuario
+                    is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     cond_trend = not is_downtrend_hard
                     
                 conditions_met_count = sum([cond_rsi, cond_context, cond_trend, cond_vol])

@@ -153,19 +153,17 @@ class RSIStrategy:
         if hard_sl_dist > 0 and sl_dist > hard_sl_dist:
             sl_dist = hard_sl_dist
 
-        # Banderas de tendencia
-        is_strong_trend   = adx > ADX_THRESHOLD         # Hay tendencia fuerte
-        is_uptrend_di     = plus_di > minus_di          # DI+ > DI- = alcista
-        is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
+        # Umbral unificado: solo bloquear LONG si la tendencia bajista es EXTREMA (ADX > 45)
+        # Esto alinea el bot con el portal y evita bloqueos en tendencias moderadas (ADX 25-45)
+        is_uptrend_di     = plus_di > minus_di
+        is_downtrend_hard = adx > 45.0 and not is_uptrend_di
 
-        # Filtro de tendencia EMA desactivado globalmente a petición del usuario
-        price_above_ema_slow = True
-        
-        if BOT_MODE == "AGGRESSIVE":
-            # En modo agresivo relajamos el filtro de tendencia bajista, pero lo mantenemos si el ADX es extremo (>45)
-            is_downtrend_hard = adx > 45.0 and not is_uptrend_di
-        elif BOT_MODE == "SCALPING":
+        if BOT_MODE == "SCALPING":
+            # Scalping: umbral ligeramente más bajo
             is_downtrend_hard = adx > (ADX_THRESHOLD + 5) and not is_uptrend_di
+
+        # Filtro EMA desactivado globalmente a petición del usuario
+        price_above_ema_slow = True
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev

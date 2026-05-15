@@ -110,8 +110,9 @@ def get_dynamic_params(ind: dict) -> dict:
             dca_min_pump    = min(DCA_MIN_DROP_PCT * 1.5, 0.06)
             mode_label      = f'{BOT_MODE}/BULL_TREND'
         else:
-            # Tendencia BAJISTA fuerte: ¡Bloquear Longs! (Punto 1). Relajar Shorts
-            rsi_oversold    = 0.0  # Bloquea compras por completo!
+            # Tendencia BAJISTA fuerte: Relajar Shorts, pero no bloquear Longs completamente.
+            # El RSI bajo en BEAR_TREND puede ser una entrada legítima de rebote.
+            rsi_oversold    = RSI_OVERSOLD              # Usar el valor del .env (ej: 35)
             rsi_overbought   = max(RSI_OVERBOUGHT - 5.0, 55.0)  # Shorts más accesibles
             dca_min_drop    = min(DCA_MIN_DROP_PCT * 1.5, 0.06)
             dca_min_pump    = max(DCA_MIN_DROP_PCT * 0.8, 0.01) # DCA para shorts más cercano
