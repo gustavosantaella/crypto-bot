@@ -501,14 +501,13 @@ class BotEngine:
                     else:
                         rsi_status = f"Falta {dist_to_overbought:.1f} para >{target_overbought:.1f}" if dist_to_overbought > 0 else "Entrada"
 
-                # ADX
-                target_adx = 45.0 if dyn['mode_active'] == 'AGGRESSIVE' else 25.0
-                # Si ADX es menor a 45 (en agresivo) o 25 (conservador), está OK.
-                # Si es mayor, podría bloquear si va contra tendencia, pero el status simple es:
+                                # ADX
+                target_adx = 30.0 if dyn['mode_active'] == 'AGGRESSIVE' else 20.0  # más permisivo
+                # Si ADX es menor al target, está OK; si es mayor, sigue permitiendo la operación en modo conservador.
                 adx_status = "EXTREMO" if adx > target_adx else "OK"
 
                 # Volumen
-                target_vol = 1.0
+                target_vol = 0.8  # aceptar volumen ligeramente inferior al promedio
                 vol_ratio = ind.get('volume_ratio', 1.0)
                 dist_vol = target_vol - vol_ratio
                 vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"

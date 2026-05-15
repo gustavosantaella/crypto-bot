@@ -2,21 +2,29 @@ import time
 import logging
 import sys
 import os
+from dotenv import load_dotenv
 
-env_file = ".env" # Default
+# Directorio de environments (siempre relativo a este script)
+ENVS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../environments'))
+
+# 1. Cargar siempre el .env principal (API keys, Telegram, DB, etc.)
+base_env = os.path.join(ENVS_DIR, '.env')
+load_dotenv(base_env, override=True)
+
+# 2. Si se pasa --env=sol, cargar también el .env de la moneda encima
+coin_env = None
 for arg in sys.argv:
     if arg.startswith("--env="):
-        env = arg.split("=")[1]
-        env_file = f"../environments/.{env}.env"
+        coin = arg.split("=")[1]
+        coin_env = os.path.join(ENVS_DIR, f".{coin}.env")
+        if os.path.exists(coin_env):
+            load_dotenv(coin_env, override=True)
+        else:
+            print(f"[WARN] Archivo de entorno no encontrado: {coin_env}")
         break
 
-# Fallback to .sol.env if default .env doesn't exist
-if env_file == ".env" and not os.path.exists(env_file):
-    if os.path.exists("../environments/.sol.env"):
-        env_file = "../environments/.sol.env"
-        print(f"No se encontro .env. Usando fallback: {env_file}")
-
-os.environ["ENV_FILE"] = env_file
+# Mantener ENV_FILE apuntando al archivo de moneda (o al base si no hay moneda)
+os.environ["ENV_FILE"] = coin_env if coin_env and os.path.exists(coin_env) else base_env
 
 from src.core.bot_engine import BotEngine
 from src.utils.logger import setup_logger

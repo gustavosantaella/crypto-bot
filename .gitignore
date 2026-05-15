@@ -10,5 +10,6 @@ __pycache__/
 *.db
 *.log
 .pids
-environments
+!environments
+environments/.env
 copy-envs

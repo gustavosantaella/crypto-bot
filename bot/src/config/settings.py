@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 
-env_file = os.getenv("ENV_FILE", ".env")
+env_file = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../environments', '.env'))
 load_dotenv(env_file, override=True)
 
 BINANCE_API_KEY = os.getenv('BINANCE_API_KEY')

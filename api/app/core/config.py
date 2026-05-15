@@ -18,6 +18,14 @@ except ImportError:
 env_file = os.getenv("ENV_FILE", ".env")
 load_dotenv(env_file)
 
+# Load coin‑specific .env (e.g. .sol.env) if it exists.
+# The symbol is read from the base .env (SYMBOL=SOLUSDT, BTCUSDT, …)
+coin_symbol = os.getenv("SYMBOL", "")
+coin_part = coin_symbol.replace('USDT', '').replace('USD', '').lower()
+coin_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../environments', f".{coin_part}.env"))
+if os.path.isfile(coin_env_path):
+    load_dotenv(coin_env_path, override=True)
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Crypto Bot API"
     API_V1_STR: str = "/api/v1"
