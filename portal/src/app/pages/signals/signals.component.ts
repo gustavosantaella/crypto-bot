@@ -70,8 +70,10 @@ declare var Chart: any;
   <div class="glass-card" style="margin-top:0;padding:1.25rem;">
     <h3 style="color:var(--text-muted);margin:0 0 1rem;font-size:.9rem;text-transform:uppercase;letter-spacing:1px;">Condiciones de Entrada - Estado Actual</h3>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.75rem;">
-      <div *ngFor="let cond of conditions" [style.background]="cond.ok?'rgba(16,185,129,0.06)':'rgba(239,68,68,0.05)'"
-           style="border:1px solid rgba(255,255,255,0.06);border-radius:.6rem;padding:.75rem;display:flex;align-items:center;gap:.75rem;">
+      <div *ngFor="let cond of conditions" class="tooltip-container"
+           [style.background]="cond.ok?'rgba(16,185,129,0.06)':'rgba(239,68,68,0.05)'"
+           style="border:1px solid rgba(255,255,255,0.06);border-radius:.6rem;padding:.75rem;display:flex;align-items:center;gap:.75rem;cursor:help;">
+        <div class="tooltip-text">{{ cond.tooltip }}</div>
         <div style="width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;"
              [style.background]="cond.ok?'rgba(16,185,129,0.2)':'rgba(239,68,68,0.15)'"
              [style.color]="cond.ok?'var(--success)':'var(--danger)'">
@@ -170,7 +172,48 @@ declare var Chart: any;
     </div>
   </div>
 </div>
-  `
+  `,
+  styles: [`
+    .tooltip-container {
+      position: relative;
+    }
+    .tooltip-container:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    .tooltip-text {
+      visibility: hidden;
+      width: 220px;
+      background: rgba(15, 23, 42, 0.95);
+      color: #e2e8f0;
+      text-align: left;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      position: absolute;
+      z-index: 1000;
+      bottom: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.2s ease, visibility 0.2s;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.75rem;
+      pointer-events: none;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+      line-height: 1.4;
+    }
+    .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+    }
+  `]
 })
 export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   logs: any[]  = [];
@@ -389,7 +432,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     return rsi > 50 ? thresholds.short : thresholds.long;
   }
 
-  get conditions(): { label: string; detail: string; ok: boolean }[] {
+  get conditions(): { label: string; detail: string; ok: boolean; tooltip: string }[] {
     const rsi     = parseFloat(this.live?.rsi)          || 50;
     const adx     = parseFloat(this.live?.adx)          || 0;
     const price   = parseFloat(this.live?.price)         || 0;
@@ -449,10 +492,32 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const volDetail = `${vol.toFixed(2)}x del promedio >= 1.0x`;
 
     return [
-      { label: `RSI (${lookingForShort ? 'Short' : 'Long'})`, detail: rsiDetail, ok: isRsiOk },
-      { label: contextLabel, detail: contextDetail, ok: isContextOk },
-      { label: trendLabel, detail: trendDetail, ok: isTrendOk },
-      { label: 'Volumen Confirmado', detail: volDetail, ok: isVolOk }
+      { 
+        label: `RSI (${lookingForShort ? 'Short' : 'Long'})`, 
+        detail: rsiDetail, 
+        ok: isRsiOk,
+        tooltip: 'El Índice de Fuerza Relativa (RSI) mide la velocidad y el cambio de los movimientos de precios para identificar condiciones de sobrecompra o sobreventa.'
+      },
+      { 
+        label: contextLabel, 
+        detail: contextDetail, 
+        ok: isContextOk,
+        tooltip: lookingForShort 
+          ? 'Valida el agotamiento del momentum alcista. Requiere que el RSI esté cayendo y que los indicadores direccionales favorezcan a los osos.'
+          : 'Evalúa el contexto general del mercado. En modo agresivo permite operar sin importar la posición respecto a la EMA200.'
+      },
+      { 
+        label: trendLabel, 
+        detail: trendDetail, 
+        ok: isTrendOk,
+        tooltip: 'Mide la fuerza de la tendencia mediante el ADX. Si la tendencia en contra es demasiado fuerte (ADX > 45), se bloquea la operación por seguridad.'
+      },
+      { 
+        label: 'Volumen Confirmado', 
+        detail: volDetail, 
+        ok: isVolOk,
+        tooltip: 'Compara el volumen actual con la media móvil del volumen. Asegura que el movimiento tenga suficiente participación de mercado.'
+      }
     ];
   }
   
