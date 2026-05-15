@@ -140,8 +140,8 @@ class TelegramNotifier:
             f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
             f"{trend_icon} *Precio:* `${price:.4f}`\n"
             f"📡 *RSI:* `{rsi:.1f}` _(L: <{umbral:.0f} | S: >{umbral_short:.0f})_\n"
-            f"📏 *ADX:* `{adx:.1f}` | *EMA200:* `${ema200:.2f}`\n"
-            f"🔊 *Volumen:* `{vol:.2f}x` del promedio\n"
+            f"📏 *ADX:* `{adx:.1f}`\n"
+            f"🔊 *Volumen:* `{vol:.2f}x` del promedio _(solo informativo)_\n"
             f"🧠 *Modo adaptador:* `{mode}`\n"
             f"┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄\n"
             f"{pos_icon} *Posición:* {'ABIERTA' if has_position else 'Sin posición'}\n"
@@ -181,25 +181,22 @@ class TelegramNotifier:
             if looking_for_short:
                 rsi_prev = ind.get('rsi_prev', 50)
                 minus_di = ind.get('minus_di', 0)
-                plus_di = ind.get('plus_di', 0)
-                momentum_agotado = (rsi < rsi_prev) and (minus_di >= plus_di)
-                
+                plus_di  = ind.get('plus_di', 0)
+                # Condición relajada: basta presión vendedora OR RSI cayendo
+                bearish_pressure = minus_di >= plus_di
+                rsi_falling      = rsi < rsi_prev
+                momentum_agotado = bearish_pressure or rsi_falling
+
                 if momentum_agotado:
-                    msg += f"✅ *Contexto:* Giro bajista confirmado (RSI cae, DI- >= DI+)\n"
+                    detail = "DI- >= DI+" if bearish_pressure else "RSI girando a la baja"
+                    msg += f"✅ *Contexto:* Giro bajista confirmado ({detail})\n"
                     conditions_count += 1
                 else:
-                    msg += f"❌ *Contexto:* Esperando giro bajista (RSI debe caer, DI- >= DI+)\n"
+                    msg += f"❌ *Contexto:* Esperando giro bajista (DI- >= DI+ o RSI cayendo)\n"
             else:
-                if ema200 > 0:
-                    req_price = ema200 * 1.003
-                    if price <= req_price:
-                        falta = req_price - price
-                        msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` [EMA200+0.3%])\n"
-                    else:
-                        msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
-                        conditions_count += 1
-                else:
-                    msg += f"❌ *Contexto:* Esperando EMA200\n"
+                # EMA desactivada — contexto siempre OK para LONG
+                msg += f"✅ *Contexto:* Sin restricción de tendencia macro (EMA desactivada)\n"
+                conditions_count += 1
             
             # 3. Check Tendencia (ADX + DI)
             plus_di = ind.get('plus_di', 0)
@@ -220,16 +217,12 @@ class TelegramNotifier:
                     msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
                     conditions_count += 1
 
-            # 4. Check Volumen Confirmado
-            if vol < 1.0:
-                falta = 1.0 - vol
-                msg += f"❌ *Volumen:* `{vol:.2f}x` (Falta {falta:.2f}x para >= 1.0x)\n"
-            else:
-                msg += f"✅ *Volumen:* `{vol:.2f}x` (>= 1.0x)\n"
-                conditions_count += 1
-            msg += f"📊 *Cumplidas:* `{conditions_count}/4` condiciones\n"
+            # Volumen — solo informativo, no bloquea la entrada
+            vol_label = "alto" if vol >= 1.0 else "bajo"
+            msg += f"📈 *Volumen:* `{vol:.2f}x` del promedio _({vol_label}, no bloquea entrada)_\n"
+            msg += f"📊 *Cumplidas:* `{conditions_count}/3` condiciones\n"
 
-            if conditions_count == 4:
+            if conditions_count >= 3:
                 msg += f"⏳ *Todo listo. Esperando señal del bot.*\n"
 
         if has_position and avg_price:

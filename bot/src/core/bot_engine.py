@@ -506,16 +506,14 @@ class BotEngine:
                 # Si ADX es menor al target, está OK; si es mayor, sigue permitiendo la operación en modo conservador.
                 adx_status = "EXTREMO" if adx > target_adx else "OK"
 
-                # Volumen
-                target_vol = 0.8  # aceptar volumen ligeramente inferior al promedio
+                # Volumen (solo informativo, no bloquea la entrada)
                 vol_ratio = ind.get('volume_ratio', 1.0)
-                dist_vol = target_vol - vol_ratio
-                vol_status = f"Falta {dist_vol:.2f}x" if dist_vol > 0 else "OK"
+                vol_status = f"{vol_ratio:.2f}x del promedio"
 
                 # Evaluar las 4 condiciones del portal para el log
                 looking_for_short = rsi > 50
                 
-                cond_vol = vol_ratio >= 1.0
+                cond_vol = True  # Volumen desactivado como condición de entrada
                 
                 if looking_for_short:
                     cond_rsi = rsi > dyn['rsi_overbought']
