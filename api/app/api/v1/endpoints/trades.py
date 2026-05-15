@@ -49,27 +49,28 @@ def create_trade(trade: TradeBase, db: Session = Depends(get_db)):
 
 @router.post("/force")
 def force_trade(req: ForceTradeRequest, db: Session = Depends(get_db)):
+    pass
     # 1. Execute market order
-    order = exchange_service.execute_market_order(req.symbol, req.side, req.quantity)
-    if not order:
-        raise HTTPException(status_code=400, detail="Failed to execute market order")
+    # order = exchange_service.execute_market_order(req.symbol, req.side, req.quantity)
+    # if not order:
+    #     raise HTTPException(status_code=400, detail="Failed to execute market order")
     
-    # 2. Set SL and TP
-    orders = exchange_service.set_sl_tp(req.symbol, req.side, req.sl, req.tp, req.quantity)
+    # # 2. Set SL and TP
+    # orders = exchange_service.set_sl_tp(req.symbol, req.side, req.sl, req.tp, req.quantity)
     
-    # 3. Save to DB
-    price = exchange_service.get_ticker_price(req.symbol) or 0.0
+    # # 3. Save to DB
+    # price = exchange_service.get_ticker_price(req.symbol) or 0.0
     
-    db_trade = Trade(
-        symbol=req.symbol,
-        side='LONG' if req.side == 'BUY' else 'SHORT',
-        price=price,
-        quantity=req.quantity,
-        pnl=0.0,
-        status='open'
-    )
-    db.add(db_trade)
-    db.commit()
-    db.refresh(db_trade)
+    # db_trade = Trade(
+    #     symbol=req.symbol,
+    #     side='LONG' if req.side == 'BUY' else 'SHORT',
+    #     price=price,
+    #     quantity=req.quantity,
+    #     pnl=0.0,
+    #     status='open'
+    # )
+    # db.add(db_trade)
+    # db.commit()
+    # db.refresh(db_trade)
     
-    return {"status": "success", "order": order, "sl_tp": orders, "trade": db_trade}
+    # return {"status": "success", "order": order, "sl_tp": orders, "trade": db_trade}

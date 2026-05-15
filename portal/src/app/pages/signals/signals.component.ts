@@ -134,10 +134,15 @@ declare var Chart: any;
   <app-confirmation-modal 
     *ngIf="showModal" 
     [message]="modalMessage" 
-    [details]="modalDetails" 
+    [symbol]="pendingTradeData?.symbol"
+    [side]="pendingTradeData?.side"
+    [livePrice]="live?.price"
+    [sl]="modalSl"
+    [tp]="modalTp"
+    [quantity]="pendingTradeData?.quantity"
     [confirmColor]="modalConfirmColor" 
     (close)="showModal=false" 
-    (confirm)="executeForcedTrade()">
+    (confirm)="executeForcedTrade($event)">
   </app-confirmation-modal>
 
   <!-- RSI + Price Chart -->
@@ -178,7 +183,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   // Modal properties
   showModal: boolean = false;
   modalMessage: string = '';
-  modalDetails: string = '';
+  modalSl: number = 0;
+  modalTp: number = 0;
   modalConfirmColor: string = '';
   pendingTradeData: any = null;
 
@@ -215,6 +221,22 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.logs.push(newLog);
         if (this.logs.length > 100) this.logs.shift();
         this.live = newLog;
+        
+        // Actualizar SL y TP en tiempo real si el modal está abierto
+        if (this.showModal && this.pendingTradeData) {
+          const price = newLog.price;
+          const atr = newLog.atr;
+          if (price && atr) {
+            if (this.pendingTradeData.side === 'BUY') {
+              this.modalSl = parseFloat((price - (atr * 1.1)).toFixed(3));
+              this.modalTp = parseFloat((price + (atr * 1.2)).toFixed(3));
+            } else {
+              this.modalSl = parseFloat((price + (atr * 1.1)).toFixed(3));
+              this.modalTp = parseFloat((price - (atr * 1.2)).toFixed(3));
+            }
+          }
+        }
+        
         this.cdr.detectChanges();
         this.initCharts();
       }
@@ -272,31 +294,40 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     let tp = 0;
     
     if (side === 'BUY') {
-      sl = price - (atr * slMult);
-      tp = price + (atr * tpMult);
+      sl = parseFloat((price - (atr * slMult)).toFixed(3));
+      tp = parseFloat((price + (atr * tpMult)).toFixed(3));
     } else {
-      sl = price + (atr * slMult);
-      tp = price - (atr * tpMult);
+      sl = parseFloat((price + (atr * slMult)).toFixed(3));
+      tp = parseFloat((price - (atr * tpMult)).toFixed(3));
     }
     
     const quantity = 0.1; // Cantidad por defecto
     
-    this.pendingTradeData = { symbol, side, quantity, sl, tp };
+    this.pendingTradeData = { symbol, side, quantity };
+    this.modalSl = sl;
+    this.modalTp = tp;
     
     this.modalMessage = `¿Estás seguro de que deseas forzar una operación en ${side === 'BUY' ? 'LONG' : 'SHORT'}?`;
-    this.modalDetails = `Símbolo: ${symbol}\nCantidad: ${quantity}\nPrecio Aprox: $${price.toFixed(2)}\nSL: $${sl.toFixed(2)}\nTP: $${tp.toFixed(2)}`;
     this.modalConfirmColor = side === 'BUY' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)';
     this.showModal = true;
   }
 
-  executeForcedTrade() {
+  executeForcedTrade(event: {sl: number, tp: number, quantity: number}) {
     if (!this.pendingTradeData) return;
     
     this.showModal = false;
     
-    this.api.forceTrade(this.pendingTradeData).subscribe({
+    const tradeData = {
+      symbol: this.pendingTradeData.symbol,
+      side: this.pendingTradeData.side,
+      quantity: event.quantity,
+      sl: event.sl,
+      tp: event.tp
+    };
+    
+    this.api.forceTrade(tradeData).subscribe({
       next: (res: any) => {
-        alert(`Orden forzada con éxito: ${this.pendingTradeData.side}\nSL: ${this.pendingTradeData.sl.toFixed(2)}\nTP: ${this.pendingTradeData.tp.toFixed(2)}`);
+        alert(`Orden forzada con éxito: ${tradeData.side}\nCant: ${tradeData.quantity}\nSL: ${tradeData.sl.toFixed(2)}\nTP: ${tradeData.tp.toFixed(2)}`);
         this.pendingTradeData = null;
       },
       error: (err) => {
