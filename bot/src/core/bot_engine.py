@@ -536,7 +536,7 @@ class BotEngine:
                         cond_context = True # EMA200 desactivado
                         is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     else:
-                        cond_context = price > (ind.get('ema_slow', 0) * 1.003)
+                        cond_context = True # EMA desactivado a petición del usuario
                         is_downtrend_hard = adx > 25 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     cond_trend = not is_downtrend_hard
                     

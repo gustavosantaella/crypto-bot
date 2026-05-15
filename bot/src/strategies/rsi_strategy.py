@@ -158,16 +158,14 @@ class RSIStrategy:
         is_uptrend_di     = plus_di > minus_di          # DI+ > DI- = alcista
         is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
 
-        # Filtro de tendencia macro ESTRICTO: el precio debe estar claramente sobre la EMA200
+        # Filtro de tendencia EMA desactivado globalmente a petición del usuario
+        price_above_ema_slow = True
+        
         if BOT_MODE == "AGGRESSIVE":
-            price_above_ema_slow = True # EMA200 desactivado a petición del usuario
             # En modo agresivo relajamos el filtro de tendencia bajista, pero lo mantenemos si el ADX es extremo (>45)
             is_downtrend_hard = adx > 45.0 and not is_uptrend_di
         elif BOT_MODE == "SCALPING":
-            price_above_ema_slow = current_price > ema_slow
             is_downtrend_hard = adx > (ADX_THRESHOLD + 5) and not is_uptrend_di
-        else:
-            price_above_ema_slow = current_price > (ema_slow * 1.003)
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev

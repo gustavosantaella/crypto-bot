@@ -465,12 +465,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         isContextOk = momentumAgotado;
         contextDetail = momentumAgotado ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'Esperando caída de RSI y presión vendedora';
     } else {
-        if (emaSlow > 0) {
-            isContextOk = true;
-            contextDetail = `EMA200 ignorada en modo Agresivo`;
-        } else {
-            contextDetail = 'Esperando datos de EMA200...';
-        }
+        isContextOk = true;
+        contextDetail = 'Filtro de EMA desactivado';
     }
 
     // 3. Tendencia
