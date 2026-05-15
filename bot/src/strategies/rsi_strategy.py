@@ -4,7 +4,8 @@ from src.config.trading_params import (
     ATR_PERIOD, ATR_SL_MULTIPLIER, ATR_TP_MULTIPLIER,
     ADX_PERIOD, ADX_THRESHOLD,
     EMA_FAST_PERIOD, EMA_SLOW_PERIOD,
-    DCA_RSI_LEVEL_2, DCA_RSI_LEVEL_3, DCA_RSI_LEVEL_4
+    DCA_RSI_LEVEL_2, DCA_RSI_LEVEL_3, DCA_RSI_LEVEL_4,
+    BOT_MODE
 )
 # Defaults from config — can be overridden per-cycle by parameter_adapter
 
@@ -158,7 +159,15 @@ class RSIStrategy:
         is_downtrend_hard = is_strong_trend and not is_uptrend_di  # Tendencia bajista fuerte
 
         # Filtro de tendencia macro ESTRICTO: el precio debe estar claramente sobre la EMA200
-        price_above_ema_slow = current_price > (ema_slow * 1.003)
+        if BOT_MODE == "AGGRESSIVE":
+            price_above_ema_slow = current_price > (ema_slow * 0.98) # Permite compras hasta 2% bajo la EMA200
+            # En modo agresivo relajamos el filtro de tendencia bajista, pero lo mantenemos si el ADX es extremo (>45)
+            is_downtrend_hard = adx > 45.0 and not is_uptrend_di
+        elif BOT_MODE == "SCALPING":
+            price_above_ema_slow = current_price > ema_slow
+            is_downtrend_hard = adx > (ADX_THRESHOLD + 5) and not is_uptrend_di
+        else:
+            price_above_ema_slow = current_price > (ema_slow * 1.003)
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev

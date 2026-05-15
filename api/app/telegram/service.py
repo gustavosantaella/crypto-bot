@@ -250,6 +250,15 @@ class TelegramBot:
                         umbral = 35.0
                         umbral_short = RSI_OVERBOUGHT
                         mode_label = "SCALPING"
+                    elif BOT_MODE == "AGGRESSIVE":
+                        umbral = RSI_OVERSOLD
+                        umbral_short = RSI_OVERBOUGHT
+                        if adx > 45.0:
+                            if ema_fast > ema_slow:
+                                umbral = 0.0
+                            else:
+                                umbral_short = 100.0
+                        mode_label = "AGGRESSIVE"
                     elif adx < 20.0:
                         umbral = min(RSI_OVERSOLD + 5.0, 40.0)
                         umbral_short = max(RSI_OVERBOUGHT - 5.0, 55.0)
@@ -308,10 +317,16 @@ class TelegramBot:
                             msg += f"❌ *Contexto:* Esperando giro bajista (RSI debe caer, DI- >= DI+)\n"
                     else:
                         if ema_slow > 0:
-                            req_price = ema_slow * 1.003
+                            if BOT_MODE == "AGGRESSIVE":
+                                req_price = ema_slow * 0.98
+                                req_str = "[EMA200-2%]"
+                            else:
+                                req_price = ema_slow * 1.003
+                                req_str = "[EMA200+0.3%]"
+                                
                             if price <= req_price:
                                 falta = req_price - price
-                                msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` [EMA200+0.3%])\n"
+                                msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` {req_str})\n"
                             else:
                                 msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
                                 conditions_count += 1
@@ -330,7 +345,7 @@ class TelegramBot:
                             msg += f"✅ *Tendencia:* Sin tendencia alcista fuerte\n"
                             conditions_count += 1
                     else:
-                        is_downtrend_hard = adx > 25 and minus_di > plus_di
+                        is_downtrend_hard = (adx > 45 if BOT_MODE == "AGGRESSIVE" else adx > 25) and minus_di > plus_di
                         if is_downtrend_hard:
                             msg += f"❌ *Tendencia:* Bajista fuerte detectada (ADX={adx:.1f}, DI- > DI+)\n"
                         else:

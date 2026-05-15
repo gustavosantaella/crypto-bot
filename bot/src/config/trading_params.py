@@ -126,6 +126,14 @@ if BOT_MODE == "SCALPING":
     DCA_RSI_LEVEL_4 = 20.0
     
     print(f"🚀 MODO DE OPERACIÓN: SCALPING (Micro-ganancias) activado.")
+elif BOT_MODE == "AGGRESSIVE":
+    # Los parámetros base se leen directamente del .env para este modo,
+    # pero aseguramos niveles escalonados agresivos
+    DCA_RSI_LEVEL_2 = RSI_OVERSOLD - 4.0
+    DCA_RSI_LEVEL_3 = RSI_OVERSOLD - 8.0
+    DCA_RSI_LEVEL_4 = RSI_OVERSOLD - 12.0
+    
+    print(f"🔥 MODO DE OPERACIÓN: AGGRESSIVE (Grid activo, altos niveles) activado.")
 elif BOT_MODE == "AGRESIVE_MEDIUM":
     # Modo intermedio entre Conservador y Scalping (Usa lógica dinámica)
     RSI_OVERSOLD = 32.5          # Intermedio entre 30 y 35

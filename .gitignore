@@ -11,3 +11,4 @@ __pycache__/
 *.log
 .pids
 environments
+copy-envs

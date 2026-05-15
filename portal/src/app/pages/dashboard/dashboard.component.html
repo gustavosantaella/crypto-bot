@@ -3,7 +3,7 @@
   <header class="page-header">
     <div class="header-brand">
       <h1 class="gradient-text">CryptoBot <span style="font-weight: 300; opacity: 0.8;">Terminal</span></h1>
-      <p>DCA Conservador — {{ activeSymbol }} Futures • 3x Leverage</p>
+      <p>Modo Aggressive — {{ activeSymbol }} Futures • 10x Leverage</p>
     </div>
     <div class="header-actions">
       <button (click)="showDocs = true" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; border-color: var(--primary); color: var(--primary);">
@@ -441,9 +441,9 @@
       <div style="display: grid; gap: 2rem;">
 
         <section>
-          <h3 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(0, 210, 255, 0.2); padding-bottom: 0.25rem;">🤖 Estrategia Principal: DCA Conservador</h3>
+          <h3 style="color: var(--primary); margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(0, 210, 255, 0.2); padding-bottom: 0.25rem;">🤖 Estrategia Principal: Modo Aggressive</h3>
           <p style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.6;">
-            El bot usa <b>Dollar Cost Averaging (DCA)</b>: divide las entradas en hasta 3 partes. Si el precio baja, compra más barato para reducir el precio promedio y salir con ganancia en el rebote. No usa todo el capital de golpe.
+            El bot usa un grid con <b>Dollar Cost Averaging (DCA)</b>: divide las entradas en hasta 3 partes agresivas con un filtro VWAP y protecciones anti-cascada. Usa apalancamiento alto pero controla el tamaño por nivel (7% base).
           </p>
         </section>
 
@@ -482,13 +482,13 @@
         <section>
           <h3 style="color: #06b6d4; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(6, 182, 212, 0.2); padding-bottom: 0.25rem;">⚙️ Configuración Actual ({{ activeSymbol }})</h3>
           <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 0.83rem; color: var(--text-muted); display: grid; gap: 0.3rem;">
-            <div>• Temporalidad: <b>1 Hora</b></div>
-            <div>• Apalancamiento: <b>3x</b></div>
-            <div>• RSI Base de Entrada: <b>&lt; 30</b> (se ajusta dinámicamente por ADX)</div>
-            <div>• Distancia Mínima DCA: <b>2.5%</b> (se ajusta dinámicamente)</div>
-            <div>• Niveles DCA RSI: <b>#2 &lt; 25 | #3 &lt; 20</b></div>
-            <div>• Multiplicadores ATR: <b>SL 2.5x | TP 3.5x</b> (se ajustan dinámicamente)</div>
-            <div>• Filtro EMA200: <b>Precio debe estar 0.3% sobre la EMA</b></div>
+            <div>• Temporalidad: <b>15 Minutos</b></div>
+            <div>• Apalancamiento: <b>10x</b></div>
+            <div>• RSI Base de Entrada: <b>&lt; 32 (Long) / &gt; 68 (Short)</b></div>
+            <div>• Distancia Mínima DCA: <b>2.5%</b> (Protección anti-cascada)</div>
+            <div>• Niveles DCA RSI: <b>Escalonados según Oversold</b></div>
+            <div>• Multiplicadores ATR: <b>SL 1.1x | TP 1.2x</b> (alta volatilidad)</div>
+            <div>• Filtro EMA200: <b>Precio debe estar sobre la EMA (Long)</b></div>
             <div>• Gestión SL/TP en Binance: <b>Un solo par por posición (se reemplaza en cada DCA)</b></div>
           </div>
         </section>

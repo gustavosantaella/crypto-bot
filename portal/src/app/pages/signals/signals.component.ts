@@ -245,9 +245,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get dynamicThresholds(): { long: number, short: number } {
-    const rsiOversold = 30.0;
-    const rsiOverbought = 70.0;
-    const adxThreshold = 25.0;
+    const rsiOversold = 32.0;
+    const rsiOverbought = 68.0;
     
     const adx = parseFloat(this.live?.adx) || 0;
     const emaFast = parseFloat(this.live?.ema_fast) || 0;
@@ -256,16 +255,12 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     let umbralLong = rsiOversold;
     let umbralShort = rsiOverbought;
     
-    if (adx < 20.0) {
-      umbralLong = Math.min(rsiOversold + 5.0, 40.0);
-      umbralShort = Math.max(rsiOverbought - 5.0, 55.0);
-    } else if (adx >= adxThreshold) {
+    // Modo AGGRESSIVE
+    if (adx > 45.0) {
       if (emaFast > emaSlow) {
-        umbralLong = Math.max(rsiOversold - 5.0, 20.0);
-        umbralShort = rsiOverbought;
+        umbralLong = 0.0; // Bloquea compras en tendencia alcista extrema
       } else {
-        umbralLong = 0.0;
-        umbralShort = Math.max(rsiOverbought - 5.0, 55.0);
+        umbralShort = 100.0; // Bloquea ventas en tendencia bajista extrema
       }
     }
     
@@ -312,9 +307,9 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         contextDetail = momentumAgotado ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'Esperando caída de RSI y presión vendedora';
     } else {
         if (emaSlow > 0) {
-            const reqPrice = emaSlow * 1.003;
+            const reqPrice = emaSlow * 0.98;
             isContextOk = price > reqPrice;
-            contextDetail = `Precio $${price.toFixed(2)} > EMA200+0.3% $${reqPrice.toFixed(2)}`;
+            contextDetail = `Precio $${price.toFixed(2)} > EMA200-2% $${reqPrice.toFixed(2)}`;
         } else {
             contextDetail = 'Esperando datos de EMA200...';
         }
@@ -323,15 +318,15 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     // 3. Tendencia
     let isTrendOk = false;
     let trendDetail = '';
-    const trendLabel = lookingForShort ? 'Sin Tendencia Alcista' : 'Sin Tendencia Bajista';
+    const trendLabel = lookingForShort ? 'Sin Tendencia Alcista Fuerte' : 'Sin Tendencia Bajista Fuerte';
     if (lookingForShort) {
-      const isUptrendHard = adx > 25 && plusDi > minusDi;
+      const isUptrendHard = adx > 45 && plusDi > minusDi;
       isTrendOk = !isUptrendHard;
-      trendDetail = isUptrendHard ? 'Tendencia alcista fuerte detectada' : 'Sin tendencia alcista fuerte';
+      trendDetail = isUptrendHard ? 'Tendencia alcista extrema detectada (ADX > 45)' : 'Sin tendencia alcista extrema';
     } else {
-      const isDowntrendHard = adx > 25 && minusDi > plusDi;
+      const isDowntrendHard = adx > 45 && minusDi > plusDi;
       isTrendOk = !isDowntrendHard;
-      trendDetail = isDowntrendHard ? 'Tendencia bajista fuerte detectada' : 'Sin tendencia bajista fuerte';
+      trendDetail = isDowntrendHard ? 'Tendencia bajista extrema detectada (ADX > 45)' : 'Sin tendencia bajista extrema';
     }
 
     // 4. Volumen

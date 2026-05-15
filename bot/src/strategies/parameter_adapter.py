@@ -55,6 +55,32 @@ def get_dynamic_params(ind: dict) -> dict:
             'mode_active':     'SCALPING',
         }
 
+    # ── Modo AGGRESSIVE: Parámetros del grid/DCA relajados, filtros suavizados ──────
+    if BOT_MODE == "AGGRESSIVE":
+        # Relax filters but keep ADX trend guard
+        effective_rsi_oversold = RSI_OVERSOLD
+        effective_rsi_overbought = RSI_OVERBOUGHT
+        
+        # Anti-trend guard (adx_trend_guard = 45)
+        if adx > 45.0:
+            if ema_fast > ema_slow:
+                effective_rsi_oversold = 0.0 # Bloquea compras
+            else:
+                effective_rsi_overbought = 100.0 # Bloquea ventas
+        
+        return {
+            'rsi_oversold':    effective_rsi_oversold,
+            'rsi_overbought':  effective_rsi_overbought,
+            'atr_sl_mult':     ATR_SL_MULTIPLIER,
+            'atr_tp_mult':     ATR_TP_MULTIPLIER,
+            'dca_min_drop':    DCA_MIN_DROP_PCT,
+            'dca_min_pump':    DCA_MIN_DROP_PCT,
+            'dca_rsi_level_2': DCA_RSI_LEVEL_2,
+            'dca_rsi_level_3': DCA_RSI_LEVEL_3,
+            'dca_rsi_level_4': DCA_RSI_LEVEL_4,
+            'mode_active':     'AGGRESSIVE',
+        }
+
     # ── Modo CONSERVATIVE / SMART: calcular dinámicamente ─────────────────────
     
     if adx < 20.0:
