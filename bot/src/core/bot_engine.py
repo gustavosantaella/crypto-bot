@@ -545,6 +545,9 @@ class BotEngine:
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
+                # Añadir umbrales activos al payload para que el portal los muestre correctamente
+                ind['rsi_oversold']   = dyn.get('rsi_oversold', RSI_OVERSOLD)
+                ind['rsi_overbought'] = dyn.get('rsi_overbought', RSI_OVERBOUGHT)
                 notify_price_update(SYMBOL, price, ind)
 
                 # -- 7. Resumen periódico de estado a Telegram (cada 5 min) ------
