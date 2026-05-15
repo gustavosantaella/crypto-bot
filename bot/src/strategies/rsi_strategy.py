@@ -160,7 +160,7 @@ class RSIStrategy:
 
         # Filtro de tendencia macro ESTRICTO: el precio debe estar claramente sobre la EMA200
         if BOT_MODE == "AGGRESSIVE":
-            price_above_ema_slow = current_price > (ema_slow * 0.98) # Permite compras hasta 2% bajo la EMA200
+            price_above_ema_slow = True # EMA200 desactivado a petición del usuario
             # En modo agresivo relajamos el filtro de tendencia bajista, pero lo mantenemos si el ADX es extremo (>45)
             is_downtrend_hard = adx > 45.0 and not is_uptrend_di
         elif BOT_MODE == "SCALPING":

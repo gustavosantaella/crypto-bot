@@ -318,18 +318,17 @@ class TelegramBot:
                     else:
                         if ema_slow > 0:
                             if BOT_MODE == "AGGRESSIVE":
-                                req_price = ema_slow * 0.98
-                                req_str = "[EMA200-2%]"
+                                msg += f"✅ *Contexto:* Ignorado por modo AGGRESSIVE\n"
+                                conditions_count += 1
                             else:
                                 req_price = ema_slow * 1.003
                                 req_str = "[EMA200+0.3%]"
-                                
-                            if price <= req_price:
-                                falta = req_price - price
-                                msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` {req_str})\n"
-                            else:
-                                msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
-                                conditions_count += 1
+                                if price <= req_price:
+                                    falta = req_price - price
+                                    msg += f"❌ *Contexto:* `${price:.2f}` (Falta `${falta:.2f}` para > `${req_price:.2f}` {req_str})\n"
+                                else:
+                                    msg += f"✅ *Contexto:* Alcista (`${price:.2f}` > `${req_price:.2f}`)\n"
+                                    conditions_count += 1
                         else:
                             msg += f"❌ *Contexto:* Esperando EMA200\n"
                     

@@ -307,9 +307,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         contextDetail = momentumAgotado ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'Esperando caída de RSI y presión vendedora';
     } else {
         if (emaSlow > 0) {
-            const reqPrice = emaSlow * 0.98;
-            isContextOk = price > reqPrice;
-            contextDetail = `Precio $${price.toFixed(2)} > EMA200-2% $${reqPrice.toFixed(2)}`;
+            isContextOk = true;
+            contextDetail = `EMA200 ignorada en modo Agresivo`;
         } else {
             contextDetail = 'Esperando datos de EMA200...';
         }

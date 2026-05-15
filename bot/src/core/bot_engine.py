@@ -502,9 +502,10 @@ class BotEngine:
                         rsi_status = f"Falta {dist_to_overbought:.1f} para >{target_overbought:.1f}" if dist_to_overbought > 0 else "Entrada"
 
                 # ADX
-                target_adx = 25.0
-                dist_adx = target_adx - adx
-                adx_status = f"Falta {dist_adx:.1f}" if dist_adx > 0 else "OK"
+                target_adx = 45.0 if dyn['mode_active'] == 'AGGRESSIVE' else 25.0
+                # Si ADX es menor a 45 (en agresivo) o 25 (conservador), está OK.
+                # Si es mayor, podría bloquear si va contra tendencia, pero el status simple es:
+                adx_status = "EXTREMO" if adx > target_adx else "OK"
 
                 # Volumen
                 target_vol = 1.0
@@ -524,12 +525,15 @@ class BotEngine:
                     rsi_prev = ind.get('rsi_prev', 50)
                     cond_context = (rsi < rsi_prev) and (ind.get('minus_di', 0) >= ind.get('plus_di', 0))
                     
-                    is_uptrend_hard = adx > 25 and ind.get('plus_di', 0) > ind.get('minus_di', 0)
+                    if dyn['mode_active'] == 'AGGRESSIVE':
+                        is_uptrend_hard = adx > 45 and ind.get('plus_di', 0) > ind.get('minus_di', 0)
+                    else:
+                        is_uptrend_hard = adx > 25 and ind.get('plus_di', 0) > ind.get('minus_di', 0)
                     cond_trend = not is_uptrend_hard
                 else:
                     cond_rsi = rsi < dyn['rsi_oversold']
                     if dyn['mode_active'] == 'AGGRESSIVE':
-                        cond_context = price > (ind.get('ema_slow', 0) * 0.98)
+                        cond_context = True # EMA200 desactivado
                         is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     else:
                         cond_context = price > (ind.get('ema_slow', 0) * 1.003)
