@@ -28,4 +28,9 @@ export class ApiService {
   getPnLOverTime(days = 30):        Observable<any>    { return this.http.get<any>(`${this.apiUrl}/stats/pnl-over-time?days=${days}`); }
   getRsiDistribution():             Observable<any>    { return this.http.get<any>(`${this.apiUrl}/stats/rsi-distribution`); }
   getHealth():                      Observable<any>    { return this.http.get<any>(`${this.apiUrl}/stats/health`); }
+
+  // ── Config ─────────────────────────────────────────────────────────────────
+  getConfig():                      Observable<any>    { return this.http.get<any>(`${this.apiUrl}/config/`); }
+  updateConfig(key: string, body: any): Observable<any> { return this.http.put<any>(`${this.apiUrl}/config/${key}`, body); }
+  resetConfig():                    Observable<any>    { return this.http.post<any>(`${this.apiUrl}/config/reset`, {}); }
 }

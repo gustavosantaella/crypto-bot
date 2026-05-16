@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import trades, status, balance, notifications, ai, stats
+from app.api.v1.endpoints import trades, status, balance, notifications, ai, stats, config
 
 api_router = APIRouter()
 api_router.include_router(trades.router,        prefix="/trades",   tags=["trades"])
@@ -8,3 +8,4 @@ api_router.include_router(balance.router,       prefix="/balance",  tags=["balan
 api_router.include_router(ai.router,            prefix="/ai",       tags=["ai"])
 api_router.include_router(stats.router,         prefix="/stats",    tags=["stats"])
 api_router.include_router(notifications.router,                     tags=["notifications"])
+api_router.include_router(config.router,         prefix="/config",   tags=["config"])

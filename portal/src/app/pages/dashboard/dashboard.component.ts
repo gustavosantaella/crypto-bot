@@ -511,7 +511,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ── Navegación ──────────────────────────────────────────────────────────────
   goToPerformance() { this.router.navigate(['/performance']); }
-  goToSignals() { this.router.navigate(['/signals']); }
+  goToSignals()     { this.router.navigate(['/signals']); }
+  goToConfig()      { this.router.navigate(['/config']); }
 
   formatPrice(price: any): string {
     const p = parseFloat(price);

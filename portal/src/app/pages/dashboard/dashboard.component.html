@@ -21,6 +21,9 @@
       <button (click)="goToStats()" class="btn-primary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; background: linear-gradient(135deg, var(--primary), #8b5cf6); border: none;">
         <span>🔬</span><span class="hide-mobile">ANALYTICS</span>
       </button>
+      <button (click)="goToConfig()" class="btn-secondary" style="border-radius: 100px; padding: 0.5rem 1rem; font-size: 0.75rem; display: flex; align-items: center; gap: 0.4rem; border-color: rgba(245,158,11,.4); color: #fbbf24;">
+        <span>⚙️</span><span class="hide-mobile">CONFIG</span>
+      </button>
       <div class="status-pill">
         <div [style.background-color]="apiOnline ? 'var(--success)' : 'var(--danger)'"
              style="width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 10px currentcolor;"></div>

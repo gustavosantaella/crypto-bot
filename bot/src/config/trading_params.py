@@ -6,7 +6,6 @@ env_file = os.getenv("ENV_FILE", ".env")
 load_dotenv(env_file, override=True)
 
 
-
 # ── Modo de Operación ─────────────────────────────────────────────────────────
 # CONSERVATIVE: Estrategia de bajo riesgo, menos operaciones pero más seguras.
 # SCALPING: Micro-ganancias frecuentes, más operaciones, objetivos cortos.
@@ -30,128 +29,152 @@ TIMEFRAME = os.getenv("TIMEFRAME", "1h")
 CHECK_INTERVAL = int(os.getenv("CHECK_INTERVAL", 5))
 
 # ── Futuros ───────────────────────────────────────────────────────────────────
-# IMPORTANTE: Con DCA conservador, usar apalancamiento BAJO.
-# Leverage 3x: si el precio cae 33% te liquidan. Con DCA de 4 entradas,
-# el precio puede caer bastante antes del rebote. No subir de 3x.
 LEVERAGE = int(os.getenv("LEVERAGE", 3))
-
-# ISOLATED = el margen de cada posición está separado (pérdida máxima = margen de esa posición)
-# CROSSED  = comparte margen entre posiciones (más riesgo)
 MARGIN_TYPE = os.getenv("MARGIN_TYPE", "ISOLATED")
 
 # ── RSI (Relative Strength Index) ─────────────────────────────────────────────
-# Mide momentum. Rango 0-100.
-RSI_PERIOD = int(os.getenv("RSI_PERIOD", 14))
-
-# Señal de compra cuando RSI < RSI_OVERSOLD (mercado sobrevendido)
-# 30 es el nivel clásico. Bajar a 28 reduce señales falsas pero da menos entradas.
-RSI_OVERSOLD = float(os.getenv("RSI_OVERSOLD", 30))
-
-# Señal de cierre cuando RSI > RSI_OVERBOUGHT (mercado sobrecomprado)
-RSI_OVERBOUGHT = float(os.getenv("RSI_OVERBOUGHT", 68))
+RSI_PERIOD    = int(os.getenv("RSI_PERIOD", 14))
+RSI_OVERSOLD  = float(os.getenv("RSI_OVERSOLD", 30))
+RSI_OVERBOUGHT= float(os.getenv("RSI_OVERBOUGHT", 68))
 
 # ── ATR (Average True Range) — Volatilidad dinámica ───────────────────────────
-ATR_PERIOD = int(os.getenv("ATR_PERIOD", 14))
-
-# SL = precio_promedio - (ATR * ATR_SL_MULTIPLIER)
-# Valor bajo = SL más ajustado = menos pérdida pero más salidas prematuras
+ATR_PERIOD        = int(os.getenv("ATR_PERIOD", 14))
 ATR_SL_MULTIPLIER = float(os.getenv("ATR_SL_MULTIPLIER", 1.5))
-
-# TP = precio_promedio + (ATR * ATR_TP_MULTIPLIER)
-# DEBE ser mayor que ATR_SL_MULTIPLIER para tener R/R positivo.
-# Con SL=1.5 y TP=2.5 → R/R = 1.67 → solo necesitas ganar 38% de los trades.
 ATR_TP_MULTIPLIER = float(os.getenv("ATR_TP_MULTIPLIER", 2.5))
-
-# Retrocompatibilidad (no se usa activamente si los multipliers están definidos)
-ATR_MULTIPLIER = float(os.getenv("ATR_MULTIPLIER", 2.0))
+ATR_MULTIPLIER    = float(os.getenv("ATR_MULTIPLIER", 2.0))  # Retrocompatibilidad
 
 # ── ADX (Average Directional Index) — Filtro de fuerza de tendencia ───────────
-ADX_PERIOD = int(os.getenv("ADX_PERIOD", 14))
-
-# Si ADX > ADX_THRESHOLD, hay una tendencia fuerte (evita entrar contra ella)
+ADX_PERIOD    = int(os.getenv("ADX_PERIOD", 14))
 ADX_THRESHOLD = float(os.getenv("ADX_THRESHOLD", 25.0))
 
 # ── EMA (Exponential Moving Average) — Filtro de tendencia macro ──────────────
-# Solo se compra (LONG) si el precio está POR ENCIMA de la EMA lenta.
-# Esto evita comprar en pleno mercado bajista.
-# EMA rápida: para detectar micro-tendencia reciente
 EMA_FAST_PERIOD = int(os.getenv("EMA_FAST_PERIOD", 50))
-
-# EMA lenta: para confirmar que estamos en contexto de mercado alcista
-# Si el precio está por debajo de la EMA200, no se abren nuevos LONG
 EMA_SLOW_PERIOD = int(os.getenv("EMA_SLOW_PERIOD", 200))
 
 # ── Gestión de Riesgo Fallback ────────────────────────────────────────────────
-STOP_LOSS_PCT = float(os.getenv("STOP_LOSS_PCT", 0.03))
-TAKE_PROFIT_PCT = float(os.getenv("TAKE_PROFIT_PCT", 0.05))
-TRADE_PERCENTAGE = float(os.getenv("TRADE_PERCENTAGE", 0.10))
+STOP_LOSS_PCT     = float(os.getenv("STOP_LOSS_PCT", 0.03))
+TAKE_PROFIT_PCT   = float(os.getenv("TAKE_PROFIT_PCT", 0.05))
+TRADE_PERCENTAGE  = float(os.getenv("TRADE_PERCENTAGE", 0.10))
 
 # ── Trailing Stop (Stop Loss dinámico) ────────────────────────────────────────
-# Una vez que el precio sube 1 ATR desde la entrada, el SL se mueve al
-# precio de entrada (breakeven). Esto garantiza que nunca pierdes en un trade
-# que llegó a estar en verde.
-USE_TRAILING_STOP = os.getenv("USE_TRAILING_STOP", "True").lower() == "true"
-
-# ATR que debe superar el precio (en ganancia) para activar el trailing
-# Ej: 1.0 = cuando el precio suba 1 ATR desde el avg, activa el breakeven
+USE_TRAILING_STOP    = os.getenv("USE_TRAILING_STOP", "True").lower() == "true"
 TRAILING_TRIGGER_ATR = float(os.getenv("TRAILING_TRIGGER_ATR", 1.0))
 
 # ── DCA (Dollar Cost Averaging) ───────────────────────────────────────────────
-# Permite abrir entradas escalonadas si el precio sigue cayendo.
-# CONSERVADOR: máximo 3 entradas al 10% cada una = 30% del capital en riesgo total.
-DCA_ENABLED = os.getenv("DCA_ENABLED", "True").lower() == "true"
+DCA_ENABLED       = os.getenv("DCA_ENABLED", "True").lower() == "true"
+MAX_DCA_ORDERS    = int(os.getenv("MAX_DCA_ORDERS", 3))
+DCA_ENTRY_SIZE_PCT= float(os.getenv("DCA_ENTRY_SIZE_PCT", 0.10))
+DCA_RSI_LEVEL_2   = float(os.getenv("DCA_RSI_LEVEL_2", 25))
+DCA_RSI_LEVEL_3   = float(os.getenv("DCA_RSI_LEVEL_3", 20))
+DCA_RSI_LEVEL_4   = float(os.getenv("DCA_RSI_LEVEL_4", 15))
+DCA_MIN_DROP_PCT  = float(os.getenv("DCA_MIN_DROP_PCT", 0.02))
 
-# Máximo de entradas DCA (incluye la primera entrada)
-# Con 3 entradas al 10%, máximo 30% del capital está en uso. El 70% queda como colchón.
-MAX_DCA_ORDERS = int(os.getenv("MAX_DCA_ORDERS", 3))
 
-# Porcentaje del balance a usar en CADA entrada individual
-# 10% por entrada × 3 entradas = 30% máximo del capital
-DCA_ENTRY_SIZE_PCT = float(os.getenv("DCA_ENTRY_SIZE_PCT", 0.10))
+# ── Sobreescritura desde base de datos (tabla bot_config) ─────────────────────
+# Si un parámetro está en la tabla Y tiene enabled=True, su valor de DB
+# tiene prioridad sobre el .env. Esto permite cambiar parámetros desde
+# el portal sin reiniciar el bot.
+def _load_db_config():
+    """
+    Lee la tabla bot_config y sobreescribe los parámetros globales
+    que tengan enabled=True. Si falla (DB no disponible, tabla vacía),
+    se usan los valores del .env sin error.
+    """
+    try:
+        import pymysql
+        db_user = os.getenv("DB_USER", "root")
+        db_pass = os.getenv("DB_PASS", "")
+        db_host = os.getenv("DB_HOST", "localhost")
+        db_port = int(os.getenv("DB_PORT", "3306"))
+        db_name = os.getenv("DB_NAME", "crypto-bot")
 
-# Niveles RSI para activar entradas DCA adicionales.
-# Cada entrada requiere que el RSI esté en un nivel MÁS bajo que el anterior,
-# garantizando que solo promedias cuando el mercado está más sobrevendido.
-DCA_RSI_LEVEL_2 = float(os.getenv("DCA_RSI_LEVEL_2", 25))  # 2da entrada: RSI < 25
-DCA_RSI_LEVEL_3 = float(os.getenv("DCA_RSI_LEVEL_3", 20))  # 3ra entrada: RSI < 20 (extremo)
-DCA_RSI_LEVEL_4 = float(os.getenv("DCA_RSI_LEVEL_4", 15))  # 4ta (solo si MAX_DCA_ORDERS=4)
+        conn = pymysql.connect(host=db_host, port=db_port,
+                               user=db_user, password=db_pass,
+                               database=db_name, connect_timeout=3)
+        cursor = conn.cursor()
+        cursor.execute("SELECT `key`, `value`, `dtype` FROM bot_config WHERE enabled = 1")
+        rows = cursor.fetchall()
+        conn.close()
 
-# Caída mínima de precio (%) desde la última entrada para permitir una nueva DCA.
-# Evita que el bot haga compras múltiples cuando el RSI oscila sin que el precio baje.
-# Ej: 0.02 = el precio debe haber caído al menos 2% desde la última compra DCA
-DCA_MIN_DROP_PCT = float(os.getenv("DCA_MIN_DROP_PCT", 0.02))
+        overrides = {}
+        for key, value, dtype in rows:
+            try:
+                if dtype == "int":
+                    overrides[key] = int(value)
+                elif dtype == "float":
+                    overrides[key] = float(value)
+                elif dtype == "bool":
+                    overrides[key] = value.lower() in ("true", "1", "yes")
+                else:
+                    overrides[key] = str(value)
+            except (ValueError, TypeError):
+                pass  # Valor inválido → usa el del .env
+
+        return overrides
+    except Exception:
+        return {}   # DB no disponible → continúa con los valores del .env
+
+
+_db_cfg = _load_db_config()
+
+def _get(key, default):
+    """Devuelve el valor de DB si está habilitado, si no el default (.env)."""
+    return _db_cfg.get(key, default)
+
+
+# Sobreescribir con valores de DB (si existen y están habilitados)
+BOT_MODE          = _get("BOT_MODE",          BOT_MODE).upper()
+SYMBOL            = _get("SYMBOL",            SYMBOL)
+TIMEFRAME         = _get("TIMEFRAME",         TIMEFRAME)
+CHECK_INTERVAL    = _get("CHECK_INTERVAL",    CHECK_INTERVAL)
+LEVERAGE          = _get("LEVERAGE",          LEVERAGE)
+MARGIN_TYPE       = _get("MARGIN_TYPE",       MARGIN_TYPE)
+RSI_PERIOD        = _get("RSI_PERIOD",        RSI_PERIOD)
+RSI_OVERSOLD      = _get("RSI_OVERSOLD",      RSI_OVERSOLD)
+RSI_OVERBOUGHT    = _get("RSI_OVERBOUGHT",    RSI_OVERBOUGHT)
+ATR_PERIOD        = _get("ATR_PERIOD",        ATR_PERIOD)
+ATR_SL_MULTIPLIER = _get("ATR_SL_MULTIPLIER", ATR_SL_MULTIPLIER)
+ATR_TP_MULTIPLIER = _get("ATR_TP_MULTIPLIER", ATR_TP_MULTIPLIER)
+ADX_PERIOD        = _get("ADX_PERIOD",        ADX_PERIOD)
+ADX_THRESHOLD     = _get("ADX_THRESHOLD",     ADX_THRESHOLD)
+EMA_FAST_PERIOD   = _get("EMA_FAST_PERIOD",   EMA_FAST_PERIOD)
+EMA_SLOW_PERIOD   = _get("EMA_SLOW_PERIOD",   EMA_SLOW_PERIOD)
+USE_TRAILING_STOP    = _get("USE_TRAILING_STOP",    USE_TRAILING_STOP)
+TRAILING_TRIGGER_ATR = _get("TRAILING_TRIGGER_ATR", TRAILING_TRIGGER_ATR)
+DCA_ENABLED       = _get("DCA_ENABLED",       DCA_ENABLED)
+MAX_DCA_ORDERS    = _get("MAX_DCA_ORDERS",    MAX_DCA_ORDERS)
+DCA_ENTRY_SIZE_PCT= _get("DCA_ENTRY_SIZE_PCT",DCA_ENTRY_SIZE_PCT)
+DCA_RSI_LEVEL_2   = _get("DCA_RSI_LEVEL_2",   DCA_RSI_LEVEL_2)
+DCA_RSI_LEVEL_3   = _get("DCA_RSI_LEVEL_3",   DCA_RSI_LEVEL_3)
+DCA_RSI_LEVEL_4   = _get("DCA_RSI_LEVEL_4",   DCA_RSI_LEVEL_4)
+DCA_MIN_DROP_PCT  = _get("DCA_MIN_DROP_PCT",  DCA_MIN_DROP_PCT)
+STOP_LOSS_PCT     = _get("STOP_LOSS_PCT",     STOP_LOSS_PCT)
+TAKE_PROFIT_PCT   = _get("TAKE_PROFIT_PCT",   TAKE_PROFIT_PCT)
+
 
 # ── Ajustes Dinámicos por Modo (BOT_MODE) ─────────────────────────────────────
 if BOT_MODE == "SCALPING":
-    # Sobrescribir parámetros para modo Scalping (Micro-ganancias)
-    # Estos valores aseguran salidas rápidas y entradas más frecuentes.
-    RSI_OVERSOLD = 35.0          # Entra antes en sobreventa
-    ATR_TP_MULTIPLIER = 1.0      # Objetivo de ganancia corto (Micro-ganancia)
-    ATR_SL_MULTIPLIER = 1.2      # Stop Loss ajustado para proteger
-    DCA_MIN_DROP_PCT = 0.01      # DCA más cercano (1%)
-    DCA_RSI_LEVEL_2 = 30.0       # Niveles DCA más accesibles
-    DCA_RSI_LEVEL_3 = 25.0
-    DCA_RSI_LEVEL_4 = 20.0
-    
-    print(f"🚀 MODO DE OPERACIÓN: SCALPING (Micro-ganancias) activado.")
+    RSI_OVERSOLD     = _get("RSI_OVERSOLD",      35.0)
+    ATR_TP_MULTIPLIER= _get("ATR_TP_MULTIPLIER", 1.0)
+    ATR_SL_MULTIPLIER= _get("ATR_SL_MULTIPLIER", 1.2)
+    DCA_MIN_DROP_PCT = _get("DCA_MIN_DROP_PCT",  0.01)
+    DCA_RSI_LEVEL_2  = _get("DCA_RSI_LEVEL_2",   30.0)
+    DCA_RSI_LEVEL_3  = _get("DCA_RSI_LEVEL_3",   25.0)
+    DCA_RSI_LEVEL_4  = _get("DCA_RSI_LEVEL_4",   20.0)
+    print(f"MODO DE OPERACION: SCALPING (Micro-ganancias) activado.")
 elif BOT_MODE == "AGGRESSIVE":
-    # Los parámetros base se leen directamente del .env para este modo,
-    # pero aseguramos niveles escalonados agresivos
-    DCA_RSI_LEVEL_2 = RSI_OVERSOLD - 4.0
-    DCA_RSI_LEVEL_3 = RSI_OVERSOLD - 8.0
-    DCA_RSI_LEVEL_4 = RSI_OVERSOLD - 12.0
-    
-    print(f"🔥 MODO DE OPERACIÓN: AGGRESSIVE (Grid activo, altos niveles) activado.")
+    DCA_RSI_LEVEL_2  = RSI_OVERSOLD - 4.0
+    DCA_RSI_LEVEL_3  = RSI_OVERSOLD - 8.0
+    DCA_RSI_LEVEL_4  = RSI_OVERSOLD - 12.0
+    print(f"MODO DE OPERACION: AGGRESSIVE (Grid activo, altos niveles) activado.")
 elif BOT_MODE == "AGRESIVE_MEDIUM":
-    # Modo intermedio entre Conservador y Scalping (Usa lógica dinámica)
-    RSI_OVERSOLD = 32.5          # Intermedio entre 30 y 35
-    ATR_TP_MULTIPLIER = 1.8      # Intermedio entre 2.5 y 1.0
-    ATR_SL_MULTIPLIER = 1.35     # Intermedio entre 1.5 y 1.2
-    DCA_MIN_DROP_PCT = 0.015     # Intermedio entre 0.02 y 0.01
-    DCA_RSI_LEVEL_2 = 27.5       # Intermedio entre 25 y 30
-    DCA_RSI_LEVEL_3 = 22.5       # Intermedio entre 20 y 25
-    DCA_RSI_LEVEL_4 = 17.5       # Intermedio entre 15 y 20
-    
-    print(f"⚖️ MODO DE OPERACIÓN: AGRESIVE_MEDIUM (Medio agresivo pero conservativo) activado.")
+    RSI_OVERSOLD     = _get("RSI_OVERSOLD",      32.5)
+    ATR_TP_MULTIPLIER= _get("ATR_TP_MULTIPLIER", 1.8)
+    ATR_SL_MULTIPLIER= _get("ATR_SL_MULTIPLIER", 1.35)
+    DCA_MIN_DROP_PCT = _get("DCA_MIN_DROP_PCT",  0.015)
+    DCA_RSI_LEVEL_2  = _get("DCA_RSI_LEVEL_2",   27.5)
+    DCA_RSI_LEVEL_3  = _get("DCA_RSI_LEVEL_3",   22.5)
+    DCA_RSI_LEVEL_4  = _get("DCA_RSI_LEVEL_4",   17.5)
+    print(f"MODO DE OPERACION: AGRESIVE_MEDIUM activado.")
 else:
-    print(f"🛡️ MODO DE OPERACIÓN: CONSERVATIVE activado.")
+    print(f"MODO DE OPERACION: CONSERVATIVE activado.")

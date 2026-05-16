@@ -99,23 +99,7 @@ declare var Chart: any;
     </div>
   </div>
 
-  <!-- IA Prediction Card -->
-  <div class="glass-card" style="margin-top:1rem;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;">
-    <div>
-      <h3 style="color:var(--text-muted);margin:0 0 0.25rem;font-size:.9rem;text-transform:uppercase;letter-spacing:1px;">IA Predictor Local (KNN)</h3>
-      <p style="color:var(--text-muted);font-size:.7rem;margin:0;">Entrena con el 50% de los datos y predice con el resto.</p>
-    </div>
-    <div style="display:flex;align-items:center;gap:1rem;">
-      <div *ngIf="aiPrediction" style="text-align:right;">
-        <div style="font-size:1.2rem;font-weight:900;color:#fff;">{{ aiPrediction }}</div>
-        <div style="font-size:.6rem;color:var(--text-muted);">Precisión: {{ aiAccuracy | percent:'1.1-1' }}</div>
-        <div *ngIf="aiRecommendedRsi" style="font-size:.6rem;color:#fbbf24;font-weight:700;">RSI Sugerido: {{ aiRecommendedRsi }}</div>
-      </div>
-      <button (click)="consultarIA()" class="btn-primary" style="border-radius:100px;padding:.5rem 1rem;font-size:.75rem;" [disabled]="aiLoading">
-        {{ aiLoading ? 'Procesando...' : 'Consultar IA' }}
-      </button>
-    </div>
-  </div>
+ 
 
   <!-- Manual Control Card -->
   <div class="glass-card" style="margin-top:1rem;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;">
@@ -216,8 +200,8 @@ declare var Chart: any;
   `]
 })
 export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
-  logs: any[]  = [];
-  live: any    = null;
+  logs: any[] = [];
+  live: any = null;
   aiPrediction: string = '';
   aiAccuracy: number = 0;
   aiRecommendedRsi: number | null = null;
@@ -240,7 +224,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   private volChart: any;
   private sub?: Subscription;
 
-  constructor(private api: ApiService, private wsService: WebsocketService, private router: Router, private cdr: ChangeDetectorRef) {}
+  constructor(private api: ApiService, private wsService: WebsocketService, private router: Router, private cdr: ChangeDetectorRef) { }
 
   ngOnInit() {
     this.fetchLogs();
@@ -251,7 +235,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
           symbol: data.symbol,
           price: parseFloat(data.price),
           rsi: parseFloat(data.rsi),
-          rsi_oversold:  parseFloat(data.rsi_oversold  || '35'),
+          rsi_oversold: parseFloat(data.rsi_oversold || '35'),
           rsi_overbought: parseFloat(data.rsi_overbought || '68'),
           rsi_prev: parseFloat(data.rsi_prev || '50'),
           ema_slow: parseFloat(data.ema200 || '0'),
@@ -266,7 +250,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         this.logs.push(newLog);
         if (this.logs.length > 100) this.logs.shift();
         this.live = newLog;
-        
+
         // Actualizar SL y TP en tiempo real si el modal está abierto
         if (this.showModal && this.pendingTradeData) {
           const price = newLog.price;
@@ -281,14 +265,14 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
             }
           }
         }
-        
+
         this.cdr.detectChanges();
         this.initCharts();
       }
     });
   }
 
-  ngAfterViewInit() {}
+  ngAfterViewInit() { }
   ngOnDestroy() { this.sub?.unsubscribe(); }
 
   go(path: string) { this.router.navigate([path]); }
@@ -326,18 +310,18 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const price = parseFloat(this.live?.price);
     const atr = parseFloat(this.live?.atr);
     const symbol = this.live?.symbol || 'SOLUSDT';
-    
+
     if (!price || !atr) {
       alert('Faltan datos de precio o ATR para calcular SL/TP');
       return;
     }
-    
+
     const slMult = 1.1;
     const tpMult = 1.2;
-    
+
     let sl = 0;
     let tp = 0;
-    
+
     if (side === 'BUY') {
       sl = parseFloat((price - (atr * slMult)).toFixed(3));
       tp = parseFloat((price + (atr * tpMult)).toFixed(3));
@@ -345,23 +329,23 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
       sl = parseFloat((price + (atr * slMult)).toFixed(3));
       tp = parseFloat((price - (atr * tpMult)).toFixed(3));
     }
-    
+
     const quantity = 0.1; // Cantidad por defecto
-    
+
     this.pendingTradeData = { symbol, side, quantity };
     this.modalSl = sl;
     this.modalTp = tp;
-    
+
     this.modalMessage = `¿Estás seguro de que deseas forzar una operación en ${side === 'BUY' ? 'LONG' : 'SHORT'}?`;
     this.modalConfirmColor = side === 'BUY' ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#ef4444,#dc2626)';
     this.showModal = true;
   }
 
-  executeForcedTrade(event: {sl: number, tp: number, quantity: number}) {
+  executeForcedTrade(event: { sl: number, tp: number, quantity: number }) {
     if (!this.pendingTradeData) return;
-    
+
     this.showModal = false;
-    
+
     const tradeData = {
       symbol: this.pendingTradeData.symbol,
       side: this.pendingTradeData.side,
@@ -369,7 +353,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
       sl: event.sl,
       tp: event.tp
     };
-    
+
     this.api.forceTrade(tradeData).subscribe({
       next: (res: any) => {
         alert(`Orden forzada con éxito: ${tradeData.side}\nCant: ${tradeData.quantity}\nSL: ${tradeData.sl.toFixed(2)}\nTP: ${tradeData.tp.toFixed(2)}`);
@@ -394,20 +378,20 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get priceVsEma(): string {
-    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_fast);
+    const p = parseFloat(this.live?.price); const e = parseFloat(this.live?.ema_fast);
     if (!p || !e) return '---';
     return p > e ? 'ABOVE EMA50' : 'BELOW EMA50';
   }
 
   get priceVsEmaColor(): string {
-    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_fast);
+    const p = parseFloat(this.live?.price); const e = parseFloat(this.live?.ema_fast);
     if (!p || !e) return 'var(--text-muted)';
     return p > e ? 'var(--success)' : 'var(--danger)';
   }
 
   get dynamicThresholds(): { long: number, short: number } {
     // Leer del WebSocket en tiempo real (el bot envía los umbrales activos del .env)
-    const rsiOversold   = parseFloat(this.live?.rsi_oversold)  || 35.0;
+    const rsiOversold = parseFloat(this.live?.rsi_oversold) || 35.0;
     const rsiOverbought = parseFloat(this.live?.rsi_overbought) || 68.0;
     return { long: rsiOversold, short: rsiOverbought };
   }
@@ -419,49 +403,49 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get conditions(): { label: string; detail: string; ok: boolean; tooltip: string }[] {
-    const rsi     = parseFloat(this.live?.rsi)          || 50;
-    const adx     = parseFloat(this.live?.adx)          || 0;
-    const price   = parseFloat(this.live?.price)         || 0;
-    const emaSlow = parseFloat(this.live?.ema_slow)      || 0;
-    const vol     = parseFloat(this.live?.volume_ratio)  || 0;
-    const plusDi  = parseFloat(this.live?.plus_di)       || 0;
-    const minusDi = parseFloat(this.live?.minus_di)      || 0;
+    const rsi = parseFloat(this.live?.rsi) || 50;
+    const adx = parseFloat(this.live?.adx) || 0;
+    const price = parseFloat(this.live?.price) || 0;
+    const emaSlow = parseFloat(this.live?.ema_slow) || 0;
+    const vol = parseFloat(this.live?.volume_ratio) || 0;
+    const plusDi = parseFloat(this.live?.plus_di) || 0;
+    const minusDi = parseFloat(this.live?.minus_di) || 0;
 
     const lookingForShort = rsi > 50;
     const thresholds = this.dynamicThresholds;
-    
+
     // 1. RSI
     const umbralLong = thresholds.long;
     const umbralShort = thresholds.short;
-    
+
     const isRsiOk = lookingForShort ? (rsi > umbralShort) : (rsi < umbralLong);
-    const rsiDetail = lookingForShort 
-        ? `RSI ${rsi.toFixed(1)} > ${umbralShort.toFixed(1)} (Short)` 
-        : `RSI ${rsi.toFixed(1)} < ${umbralLong.toFixed(1)} (Long)`;
+    const rsiDetail = lookingForShort
+      ? `RSI ${rsi.toFixed(1)} > ${umbralShort.toFixed(1)} (Short)`
+      : `RSI ${rsi.toFixed(1)} < ${umbralLong.toFixed(1)} (Long)`;
 
     // 2. Contexto
     let isContextOk = false;
     let contextDetail = '';
     const contextLabel = lookingForShort ? 'Giro Bajista' : 'Contexto Alcista';
-    
+
     if (lookingForShort) {
-        // Top-catching short: basta presión vendedora OR RSI cayendo (igual que la estrategia)
-        const rsiPrev = parseFloat(this.live?.rsi_prev) || parseFloat(this.logs.length > 1 ? this.logs[this.logs.length - 2]?.rsi : rsi) || 50;
-        const bearishPressure = minusDi >= plusDi;
-        const rsiFalling      = rsi < rsiPrev;
-        const momentumAgotado = bearishPressure || rsiFalling;
-        isContextOk = momentumAgotado;
-        contextDetail = momentumAgotado
-          ? (bearishPressure ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'RSI girando a la baja')
-          : 'Esperando DI- >= DI+ o RSI cayendo';
+      // Top-catching short: basta presión vendedora OR RSI cayendo (igual que la estrategia)
+      const rsiPrev = parseFloat(this.live?.rsi_prev) || parseFloat(this.logs.length > 1 ? this.logs[this.logs.length - 2]?.rsi : rsi) || 50;
+      const bearishPressure = minusDi >= plusDi;
+      const rsiFalling = rsi < rsiPrev;
+      const momentumAgotado = bearishPressure || rsiFalling;
+      isContextOk = momentumAgotado;
+      contextDetail = momentumAgotado
+        ? (bearishPressure ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'RSI girando a la baja')
+        : 'Esperando DI- >= DI+ o RSI cayendo';
     } else {
-        // EMA50 activa: el precio debe estar sobre la EMA50 para abrir LONG
-        const emaFast = parseFloat(this.live?.ema_fast) || 0;
-        isContextOk = emaFast > 0 && price > emaFast;
-        const diff = emaFast > 0 ? (price - emaFast).toFixed(2) : '?';
-        contextDetail = isContextOk
-          ? `Precio $${price.toFixed(2)} sobre EMA50 $${emaFast.toFixed(2)} (+$${diff})`
-          : `Precio $${price.toFixed(2)} bajo EMA50 $${emaFast.toFixed(2)} ($${diff})`;
+      // EMA50 activa: el precio debe estar sobre la EMA50 para abrir LONG
+      const emaFast = parseFloat(this.live?.ema_fast) || 0;
+      isContextOk = emaFast > 0 && price > emaFast;
+      const diff = emaFast > 0 ? (price - emaFast).toFixed(2) : '?';
+      contextDetail = isContextOk
+        ? `Precio $${price.toFixed(2)} sobre EMA50 $${emaFast.toFixed(2)} (+$${diff})`
+        : `Precio $${price.toFixed(2)} bajo EMA50 $${emaFast.toFixed(2)} ($${diff})`;
     }
 
     // 3. Tendencia
@@ -483,36 +467,36 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const volDetail = `${vol.toFixed(2)}x del promedio >= 1.0x`;
 
     return [
-      { 
-        label: `RSI (${lookingForShort ? 'Short' : 'Long'})`, 
-        detail: rsiDetail, 
+      {
+        label: `RSI (${lookingForShort ? 'Short' : 'Long'})`,
+        detail: rsiDetail,
         ok: isRsiOk,
         tooltip: 'El Índice de Fuerza Relativa (RSI) mide la velocidad y el cambio de los movimientos de precios para identificar condiciones de sobrecompra o sobreventa.'
       },
-      { 
-        label: contextLabel, 
-        detail: contextDetail, 
+      {
+        label: contextLabel,
+        detail: contextDetail,
         ok: isContextOk,
-        tooltip: lookingForShort 
+        tooltip: lookingForShort
           ? 'Valida el agotamiento del momentum alcista. Requiere que el RSI esté cayendo y que los indicadores direccionales favorezcan a los osos.'
           : 'Filtro EMA50 activo: el precio debe estar por encima de la EMA de 50 períodos para confirmar micro-tendencia alcista y habilitar la entrada LONG.'
       },
-      { 
-        label: trendLabel, 
-        detail: trendDetail, 
+      {
+        label: trendLabel,
+        detail: trendDetail,
         ok: isTrendOk,
         tooltip: 'Mide la fuerza de la tendencia mediante el ADX. Si la tendencia en contra es demasiado fuerte (ADX > 45), se bloquea la operación por seguridad.'
       },
       // Volumen — solo informativo, no bloquea entrada
-      { 
-        label: 'Volumen', 
-        detail: `${vol.toFixed(2)}x del promedio (informativo)`, 
+      {
+        label: 'Volumen',
+        detail: `${vol.toFixed(2)}x del promedio (informativo)`,
         ok: true,
         tooltip: 'El volumen se muestra como información adicional pero no bloquea la entrada.'
       }
     ];
   }
-  
+
   getHistoricalRsiThreshold(adxValue: number): number {
     const baseRsi = this.activeSymbol.includes('BTC') ? 65 : 30;
     if (adxValue >= 25) {
@@ -542,22 +526,28 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
       data: {
         labels,
         datasets: [
-          { type: 'line', label: 'Precio', data: this.logs.map(l => parseFloat(l.price)),
+          {
+            type: 'line', label: 'Precio', data: this.logs.map(l => parseFloat(l.price)),
             borderColor: '#00d2ff', backgroundColor: 'rgba(0,210,255,0.05)',
-            borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, yAxisID: 'yPrice' },
-          { type: 'line', label: 'RSI', data: this.logs.map(l => parseFloat(l.rsi)),
-            borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, yAxisID: 'yRsi' },
-          { type: 'line', label: 'Umbral RSI', data: this.logs.map(l => this.getHistoricalRsiThreshold(parseFloat(l.adx||0))),
+            borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3, yAxisID: 'yPrice'
+          },
+          {
+            type: 'line', label: 'RSI', data: this.logs.map(l => parseFloat(l.rsi)),
+            borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3, yAxisID: 'yRsi'
+          },
+          {
+            type: 'line', label: 'Umbral RSI', data: this.logs.map(l => this.getHistoricalRsiThreshold(parseFloat(l.adx || 0))),
             borderColor: 'rgba(16,185,129,0.5)', borderDash: [4, 4], borderWidth: 1.5,
-            pointRadius: 0, fill: false, yAxisID: 'yRsi' },
+            pointRadius: 0, fill: false, yAxisID: 'yRsi'
+          },
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
         scales: {
           x: { ticks: { color: '#9ca3af', font: { size: 9 }, maxTicksLimit: 12 }, grid: { color: 'rgba(255,255,255,0.03)' } },
-          yPrice: { position: 'left',  ticks: { color: '#00d2ff', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-          yRsi:   { position: 'right', min: 0, max: 100, ticks: { color: '#fbbf24', font: { size: 9 } }, grid: { display: false } }
+          yPrice: { position: 'left', ticks: { color: '#00d2ff', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          yRsi: { position: 'right', min: 0, max: 100, ticks: { color: '#fbbf24', font: { size: 9 } }, grid: { display: false } }
         },
         plugins: { legend: { labels: { color: '#9ca3af', font: { size: 10 } } } }
       }
@@ -574,11 +564,15 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
       data: {
         labels,
         datasets: [
-          { label: 'ADX', data: this.logs.map(l => parseFloat(l.adx||0)),
+          {
+            label: 'ADX', data: this.logs.map(l => parseFloat(l.adx || 0)),
             borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.08)',
-            borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3 },
-          { label: 'Umbral 25', data: this.logs.map(() => 25),
-            borderColor: 'rgba(255,255,255,0.2)', borderDash: [4,4], borderWidth: 1, pointRadius: 0, fill: false }
+            borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3
+          },
+          {
+            label: 'Umbral 25', data: this.logs.map(() => 25),
+            borderColor: 'rgba(255,255,255,0.2)', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, fill: false
+          }
         ]
       },
       options: {
@@ -596,8 +590,8 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const ctx = document.getElementById('volChart') as HTMLCanvasElement;
     if (!ctx || this.logs.length === 0) return;
     if (this.volChart) this.volChart.destroy();
-    const labels  = this.logs.map(l => new Date(l.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }));
-    const volData = this.logs.map(l => parseFloat(l.volume_ratio||0));
+    const labels = this.logs.map(l => new Date(l.timestamp).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' }));
+    const volData = this.logs.map(l => parseFloat(l.volume_ratio || 0));
     const bgColors = volData.map(v => v >= 1.2 ? 'rgba(16,185,129,0.7)' : 'rgba(100,116,139,0.4)');
 
     this.volChart = new Chart(ctx, {
@@ -606,8 +600,10 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         labels,
         datasets: [
           { label: 'Vol Ratio', data: volData, backgroundColor: bgColors, borderRadius: 3, borderSkipped: false },
-          { type: 'line', label: 'Umbral 1.0x', data: this.logs.map(() => 1.0),
-            borderColor: 'rgba(255,255,255,0.3)', borderDash: [4,4], borderWidth: 1, pointRadius: 0, fill: false }
+          {
+            type: 'line', label: 'Umbral 1.0x', data: this.logs.map(() => 1.0),
+            borderColor: 'rgba(255,255,255,0.3)', borderDash: [4, 4], borderWidth: 1, pointRadius: 0, fill: false
+          }
         ]
       },
       options: {

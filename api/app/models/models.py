@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Numeric, DateTime, Boolean, Text
 from app.db.session import Base
+from app.models.bot_config_model import BotConfig  # noqa — registers table
 import datetime
 
 class Trade(Base):

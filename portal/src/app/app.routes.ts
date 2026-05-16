@@ -5,6 +5,7 @@ import { CancelledTradesComponent } from './pages/cancelled-trades/cancelled-tra
 import { StatisticsComponent }      from './pages/statistics/statistics';
 import { PerformanceComponent }     from './pages/performance/performance.component';
 import { SignalsComponent }         from './pages/signals/signals.component';
+import { ConfigComponent }          from './pages/config/config.component';
 
 export const routes: Routes = [
   { path: '',                 component: DashboardComponent },
@@ -13,5 +14,6 @@ export const routes: Routes = [
   { path: 'history/rsi',      component: HistoryComponent },
   { path: 'trades/cancelled', component: CancelledTradesComponent },
   { path: 'statistics',       component: StatisticsComponent },
+  { path: 'config',           component: ConfigComponent },
   { path: '**',               redirectTo: '' }
 ];
