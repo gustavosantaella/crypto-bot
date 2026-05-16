@@ -19,10 +19,11 @@ except ImportError:
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ENVIRONMENTS_DIR = os.path.abspath(os.path.join(_HERE, '../../environments'))
 
-# 1. Cargar SIEMPRE el .env principal (contiene BINANCE_API_KEY, BINANCE_SECRET_KEY, TELEGRAM, etc.)
+# 1. Cargar el .env principal (SIN sobreescribir para permitir que prevalezcan los específicos)
 _main_env = os.path.join(_ENVIRONMENTS_DIR, '.env')
 if os.path.isfile(_main_env):
     load_dotenv(_main_env, override=False)
+
 
 # 2. Superponer el .env de moneda si se especificó via ENV_FILE o SYMBOL
 _env_file_arg = os.getenv("ENV_FILE", "")

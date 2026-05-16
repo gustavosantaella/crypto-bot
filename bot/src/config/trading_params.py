@@ -1,25 +1,44 @@
 import os
+import sys
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde el archivo .env
-env_file = os.getenv("ENV_FILE", ".env")
-load_dotenv(env_file, override=True)
+# 1. Determinar el directorio de entornos (subir 3 niveles desde src/config/trading_params.py)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../.."))
+ENVS_DIR = os.path.join(BASE_DIR, "environments")
+
+# 2. Cargar .env base primero (SIN sobreescribir si ya hay variables seteadas)
+base_env = os.path.join(ENVS_DIR, ".env")
+if os.path.exists(base_env):
+    load_dotenv(base_env, override=False)
 
 
-# ── Modo de Operación ─────────────────────────────────────────────────────────
-# CONSERVATIVE: Estrategia de bajo riesgo, menos operaciones pero más seguras.
-# SCALPING: Micro-ganancias frecuentes, más operaciones, objetivos cortos.
-BOT_MODE = os.getenv("BOT_MODE", "CONSERVATIVE").upper()
+# 3. Soporte para --env=xxx desde línea de comandos
+import sys
+cmd_env = None
+for arg in sys.argv:
+    if arg.startswith("--env="):
+        cmd_env = arg.split("=")[1]
+        break
 
-# ── Par y temporalidad ────────────────────────────────────────────────────────
-# Par de criptomonedas a operar (ej: SOLUSDT, BTCUSDT)
+# 4. Si se pasó --env=xxx, cargar ese archivo específico
+if cmd_env:
+    specific_env = os.path.join(ENVS_DIR, f".{cmd_env}.env")
+    if os.path.exists(specific_env):
+        load_dotenv(specific_env, override=True)
+        print(f"INFO: Cargando entorno específico desde {specific_env}")
+    else:
+        print(f"WARN: No se encontró el entorno {specific_env}")
+
+# 5. Fallback por SYMBOL (si no se pasó --env o para asegurar consistencia)
 SYMBOL = os.getenv("SYMBOL", "SOLUSDT")
+BOT_MODE = os.getenv("BOT_MODE", "CONSERVATIVE").upper()
+if not cmd_env:
+    coin_part = SYMBOL.replace('USDT', '').replace('USD', '').lower()
+    auto_env = os.path.join(ENVS_DIR, f".{coin_part}.env")
+    if os.path.exists(auto_env):
+        load_dotenv(auto_env, override=True)
+        print(f"INFO: Autodetectado entorno {auto_env} para {SYMBOL}")
 
-# Cargar archivo .env específico de la moneda (p.ej. .sol.env) si existe
-coin_part = SYMBOL.replace('USDT', '').replace('USD', '').lower()
-coin_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../environments', f".{coin_part}.env"))
-if os.path.isfile(coin_env_path):
-    load_dotenv(coin_env_path, override=True)
 
 # Timeframe de las velas. Más alto = menos ruido pero menos señales.
 # Recomendado: 1h (balance entre frecuencia y calidad de señal)
