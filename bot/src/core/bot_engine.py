@@ -445,6 +445,44 @@ class BotEngine:
                         f"SL: {self.target_sl:.4f} | TP: {self.target_tp:.4f}"
                     )
 
+                # ── 2d. GUARDAESPALDAS: verificar que el SL/TP existen en Binance ──
+                # Si hay posicion abierta con niveles definidos, confirmar que las
+                # ordenes de proteccion esten activas en Binance. Si no, reponerlas.
+                # Cubre el caso donde set_sl_tp falló por red, error -4130, etc.
+                if self.has_position and self.target_sl and self.target_tp:
+                    try:
+                        open_orders = self.exchange.client.futures_get_open_orders(symbol=SYMBOL)
+                        has_sl_on_binance = any(o['type'] == 'STOP_MARKET' for o in open_orders)
+                        has_tp_on_binance = any(o['type'] == 'TAKE_PROFIT_MARKET' for o in open_orders)
+
+                        if not has_sl_on_binance or not has_tp_on_binance:
+                            missing = []
+                            if not has_sl_on_binance:
+                                missing.append("SL")
+                            if not has_tp_on_binance:
+                                missing.append("TP")
+                            logging.warning(
+                                f"[GUARDIAN] ⚠️ Ordenes faltantes en Binance: {', '.join(missing)} | "
+                                f"Reponiendo SL={self.target_sl:.4f} TP={self.target_tp:.4f}"
+                            )
+                            side_str = 'BUY' if self.trade_type == 'LONG' else 'SELL'
+                            self.exchange.cancel_all_orders(SYMBOL)
+                            self.exchange.set_sl_tp(
+                                SYMBOL, side_str,
+                                self.target_sl, self.target_tp,
+                                self._total_quantity()
+                            )
+                            self.exchange.cleanup_duplicate_orders(SYMBOL)
+                            TelegramNotifier.notify_error(
+                                "GUARDIAN SL/TP",
+                                Exception(
+                                    f"Ordenes {', '.join(missing)} faltaban en Binance. "
+                                    f"Repuestas: SL={self.target_sl:.4f} | TP={self.target_tp:.4f}"
+                                )
+                            )
+                    except Exception as e_guard:
+                        logging.error(f"[GUARDIAN] Error al verificar ordenes en Binance: {e_guard}")
+
                 # ── 3. Trailing stop / Breakeven (antes de evaluar señal) ───────
                 # Si ya hay posición LONG y está en positivo, proteger ganancias
                 if self.has_position and self.trade_type == "LONG":
