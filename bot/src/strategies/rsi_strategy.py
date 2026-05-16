@@ -200,6 +200,7 @@ class RSIStrategy:
             bearish_pressure = minus_di >= plus_di       # DI- >= DI+ (vendedores dominan)
             rsi_falling      = rsi < rsi_prev            # RSI girando a la baja
             momentum_agotado = bearish_pressure or rsi_falling
+            is_strong_trend  = adx > ADX_THRESHOLD       # ADX indica tendencia fuerte
             no_uptrend_hard  = not (is_strong_trend and is_uptrend_di)
 
             if rsi_overbought and momentum_agotado and no_uptrend_hard:
