@@ -351,7 +351,7 @@ class TelegramBot:
                             msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
                             conditions_count += 1
 
-                    # 4. Check Volumen Confirmado
+                    # 4. Check Volumen (reactivado)
                     vol = float(last_price.volume_ratio) if last_price.volume_ratio else 0.0
                     
                     if vol < 1.0:
@@ -364,6 +364,7 @@ class TelegramBot:
 
                     if conditions_count == 4:
                         msg += f"⏳ *Todo listo. Esperando señal del bot.*\n"
+
 
             self.send_message(chat_id, msg)
         except Exception as e:

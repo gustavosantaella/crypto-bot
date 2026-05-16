@@ -168,8 +168,8 @@ class RSIStrategy:
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev
 
-        # Confirmación de volumen — desactivado como condición de entrada (solo informativo)
-        volume_confirms = True
+        # Confirmación de volumen — reactivado como condición de entrada
+        volume_confirms = volume_ratio >= 1.0
 
         # ── Sin posición: evaluar si abrir ────────────────────────────────────
         if not has_position:
@@ -180,33 +180,27 @@ class RSIStrategy:
             trend_ok        = not is_downtrend_hard          # Cond 2: No en tendencia bajista fuerte
             macro_trend_ok  = price_above_ema_fast           # Cond 3: Precio sobre EMA50 (micro-tendencia)
 
-            if rsi_oversold_ok and trend_ok and macro_trend_ok:
-                # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista
+            if rsi_oversold_ok and trend_ok and macro_trend_ok and volume_confirms:
+                # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista + volumen
                 tp = current_price + tp_dist
                 sl = current_price - sl_dist
                 return 'BUY', tp, sl
 
             # ── Señal SHORT ───────────────────────────────────────────────────
             # Short counter-trend agresivo (Top-catching) según feedback del usuario:
-            # Permite shortear el tope de una tendencia si el RSI está sobrecomprado, 
-            # el RSI empezó a caer, la presión vendedora supera la compradora (DI- > DI+), y hay volumen.
             rsi_overbought   = rsi > effective_rsi_overbought
             
-            # Condición de contexto bajista (puede ser clásico bajo la EMA, o tope alcista sobre la EMA)
-            # Para simplificar y hacer lo que el usuario pide (short en pleno precio alto):
-            # No exigiremos que el precio esté bajo la EMA200. Solo que el momentum se agote.
-            # Señal de agotamiento alcista: basta con que la presión vendedora domine
-            # O que el RSI esté cayendo. No se exige las dos simultáneamente.
             bearish_pressure = minus_di >= plus_di       # DI- >= DI+ (vendedores dominan)
             rsi_falling      = rsi < rsi_prev            # RSI girando a la baja
             momentum_agotado = bearish_pressure or rsi_falling
             is_strong_trend  = adx > ADX_THRESHOLD       # ADX indica tendencia fuerte
             no_uptrend_hard  = not (is_strong_trend and is_uptrend_di)
 
-            if rsi_overbought and momentum_agotado and no_uptrend_hard:
+            if rsi_overbought and momentum_agotado and no_uptrend_hard and volume_confirms:
                 tp = current_price - tp_dist
                 sl = current_price + sl_dist
                 return 'SELL_SHORT', tp, sl
+
 
         # ── Con posición LONG activa ───────────────────────────────────────────
         elif trade_type == "LONG":

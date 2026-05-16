@@ -223,13 +223,19 @@ class TelegramNotifier:
                     msg += f"✅ *Tendencia:* Sin tendencia bajista fuerte\n"
                     conditions_count += 1
 
-            # Volumen — solo informativo, no bloquea la entrada
-            vol_label = "alto" if vol >= 1.0 else "bajo"
-            msg += f"📈 *Volumen:* `{vol:.2f}x` del promedio _({vol_label}, no bloquea entrada)_\n"
-            msg += f"📊 *Cumplidas:* `{conditions_count}/3` condiciones\n"
+        # 4. Check Volumen (reactivado)
+        if vol >= 1.0:
+            msg += f"✅ *Volumen:* `{vol:.2f}x` (>= 1.0x) ✔️\n"
+            conditions_count += 1
+        else:
+            falta = 1.0 - vol
+            msg += f"❌ *Volumen:* `{vol:.2f}x` (Falta {falta:.2f}x para >= 1.0x)\n"
 
-            if conditions_count >= 3:
-                msg += f"⏳ *Todo listo. Esperando señal del bot.*\n"
+        msg += f"📊 *Cumplidas:* `{conditions_count}/4` condiciones\n"
+
+        if conditions_count >= 4:
+            msg += f"⏳ *Todo listo. Esperando señal del bot.*\n"
+
 
         if has_position and avg_price:
             pnl_pct = ((price - avg_price) / avg_price) * 100

@@ -544,14 +544,14 @@ class BotEngine:
                 # Si ADX es menor al target, está OK; si es mayor, sigue permitiendo la operación en modo conservador.
                 adx_status = "EXTREMO" if adx > target_adx else "OK"
 
-                # Volumen (solo informativo, no bloquea la entrada)
+                # Volumen (reactivado como condición de entrada)
                 vol_ratio = ind.get('volume_ratio', 1.0)
-                vol_status = f"{vol_ratio:.2f}x del promedio"
+                vol_status = "OK" if vol_ratio >= 1.0 else f"BAJO ({vol_ratio:.2f}x)"
 
                 # Evaluar las 4 condiciones del portal para el log
                 looking_for_short = rsi > 50
                 
-                cond_vol = True  # Volumen desactivado como condición de entrada
+                cond_vol = vol_ratio >= 1.0
                 
                 if looking_for_short:
                     cond_rsi = rsi > dyn['rsi_overbought']
@@ -580,6 +580,7 @@ class BotEngine:
                     f"DCA: {len(self.dca_entries)}/{MAX_DCA_ORDERS} | "
                     f"Mode: {dyn['mode_active']}"
                 )
+
                 # Añadir umbrales activos al payload para que el portal los muestre correctamente
                 ind['rsi_oversold']   = dyn.get('rsi_oversold', RSI_OVERSOLD)
                 ind['rsi_overbought'] = dyn.get('rsi_overbought', RSI_OVERBOUGHT)

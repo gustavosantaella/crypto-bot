@@ -454,17 +454,16 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
     const trendLabel = lookingForShort ? 'Sin Tendencia Alcista Fuerte' : 'Sin Tendencia Bajista Fuerte';
     if (lookingForShort) {
       const isUptrendHard = adx > 45 && plusDi > minusDi;
-      isTrendOk = !isUptrendHard;
-      trendDetail = isUptrendHard ? 'Tendencia alcista extrema detectada (ADX > 45)' : 'Sin tendencia alcista extrema';
-    } else {
       const isDowntrendHard = adx > 45 && minusDi > plusDi;
       isTrendOk = !isDowntrendHard;
       trendDetail = isDowntrendHard ? 'Tendencia bajista extrema detectada (ADX > 45)' : 'Sin tendencia bajista extrema';
     }
 
-    // 4. Volumen
+    // 4. Volumen (reactivado como requerido)
     const isVolOk = vol >= 1.0;
-    const volDetail = `${vol.toFixed(2)}x del promedio >= 1.0x`;
+    const volDetail = isVolOk 
+      ? `${vol.toFixed(2)}x del promedio (Requerido >= 1.0x)`
+      : `${vol.toFixed(2)}x (Falta ${(1.0 - vol).toFixed(2)}x para 1.0x)`;
 
     return [
       {
@@ -487,12 +486,11 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         ok: isTrendOk,
         tooltip: 'Mide la fuerza de la tendencia mediante el ADX. Si la tendencia en contra es demasiado fuerte (ADX > 45), se bloquea la operación por seguridad.'
       },
-      // Volumen — solo informativo, no bloquea entrada
       {
         label: 'Volumen',
-        detail: `${vol.toFixed(2)}x del promedio (informativo)`,
-        ok: true,
-        tooltip: 'El volumen se muestra como información adicional pero no bloquea la entrada.'
+        detail: volDetail,
+        ok: isVolOk,
+        tooltip: 'El volumen actual debe ser al menos 1.0x el promedio de las últimas 20 velas para confirmar que el movimiento tiene respaldo institucional.'
       }
     ];
   }
