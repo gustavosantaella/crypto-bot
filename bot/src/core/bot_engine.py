@@ -567,8 +567,8 @@ class BotEngine:
                     cond_trend = not is_uptrend_hard
                 else:
                     cond_rsi = rsi < dyn['rsi_oversold']
-                    # Umbral unificado: solo bloquear LONG si ADX > 45 (igual que estrategia y portal)
-                    cond_context = True  # EMA desactivado a petición del usuario
+                    # EMA50 reactivada: exigir que el precio esté sobre la EMA50
+                    cond_context = price > ind.get('ema_fast', price)  # Precio sobre EMA50
                     is_downtrend_hard = adx > 45 and ind.get('minus_di', 0) > ind.get('plus_di', 0)
                     cond_trend = not is_downtrend_hard
                     

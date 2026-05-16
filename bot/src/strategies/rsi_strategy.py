@@ -162,8 +162,8 @@ class RSIStrategy:
             # Scalping: umbral ligeramente más bajo
             is_downtrend_hard = adx > (ADX_THRESHOLD + 5) and not is_uptrend_di
 
-        # Filtro EMA desactivado globalmente a petición del usuario
-        price_above_ema_slow = True
+        # Filtro EMA50: solo abrir LONG si el precio está sobre la EMA rápida (micro-tendencia alcista)
+        price_above_ema_fast = current_price > ema_fast
 
         # RSI girando hacia arriba: el momentum bajista se está agotando
         rsi_turning_up = rsi > rsi_prev
@@ -178,7 +178,7 @@ class RSIStrategy:
             # Condiciones de entrada (todas deben cumplirse para ser conservador):
             rsi_oversold_ok = rsi < effective_rsi_oversold  # Cond 1: RSI sobrevendido (dinámico)
             trend_ok        = not is_downtrend_hard          # Cond 2: No en tendencia bajista fuerte
-            macro_trend_ok  = price_above_ema_slow           # Cond 3: Precio sobre EMA lenta
+            macro_trend_ok  = price_above_ema_fast           # Cond 3: Precio sobre EMA50 (micro-tendencia)
 
             if rsi_oversold_ok and trend_ok and macro_trend_ok:
                 # Entrada confirmada: RSI bajo + mercado alcista + sin tendencia bajista

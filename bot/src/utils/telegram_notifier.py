@@ -125,6 +125,7 @@ class TelegramNotifier:
 
         rsi     = ind.get('rsi', 0)
         adx     = ind.get('adx', 0)
+        ema50   = ind.get('ema_fast', 0)
         ema200  = ind.get('ema_slow', 0)
         vol     = ind.get('volume_ratio', 0)
         mode    = dyn.get('mode_active', 'N/A')
@@ -194,9 +195,14 @@ class TelegramNotifier:
                 else:
                     msg += f"❌ *Contexto:* Esperando giro bajista (DI- >= DI+ o RSI cayendo)\n"
             else:
-                # EMA desactivada — contexto siempre OK para LONG
-                msg += f"✅ *Contexto:* Sin restricción de tendencia macro (EMA desactivada)\n"
-                conditions_count += 1
+                # EMA50 activa: precio debe estar sobre la EMA50
+                above_ema50 = price > ema50
+                if above_ema50:
+                    msg += f"✅ *EMA50:* `${ema50:.2f}` — Precio sobre EMA50 ✔️\n"
+                    conditions_count += 1
+                else:
+                    diff = ema50 - price
+                    msg += f"❌ *EMA50:* `${ema50:.2f}` — Precio bajo EMA50 (falta ${diff:.2f})\n"
             
             # 3. Check Tendencia (ADX + DI)
             plus_di = ind.get('plus_di', 0)

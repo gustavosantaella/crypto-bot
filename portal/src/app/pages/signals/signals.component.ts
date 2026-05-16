@@ -48,9 +48,9 @@ declare var Chart: any;
       <div style="font-size:.6rem;font-weight:700;" [style.color]="priceVsEmaColor">{{ priceVsEma }}</div>
     </div>
     <div class="glass-card" style="padding:.75rem;text-align:center;">
-      <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">EMA 50</div>
-      <div style="font-size:1.3rem;font-weight:900;color:#fff;">$ {{ live?.ema_fast | number:'1.2-2' }}</div>
-      <div style="font-size:.6rem;color:var(--text-muted);font-weight:700;">Micro-trend</div>
+      <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">EMA 50 ⚡ ACTIVO</div>
+      <div style="font-size:1.3rem;font-weight:900;" [style.color]="priceVsEmaColor">$ {{ live?.ema_fast | number:'1.2-2' }}</div>
+      <div style="font-size:.6rem;font-weight:700;" [style.color]="priceVsEmaColor">{{ priceVsEma }}</div>
     </div>
     <div class="glass-card" style="padding:.75rem;text-align:center;">
       <div style="font-size:.55rem;color:var(--text-muted);font-weight:700;margin-bottom:.25rem;">VOLUME</div>
@@ -394,13 +394,13 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   get priceVsEma(): string {
-    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_slow);
+    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_fast);
     if (!p || !e) return '---';
-    return p > e ? 'ABOVE EMA' : 'BELOW EMA';
+    return p > e ? 'ABOVE EMA50' : 'BELOW EMA50';
   }
 
   get priceVsEmaColor(): string {
-    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_slow);
+    const p = parseFloat(this.live?.price);  const e = parseFloat(this.live?.ema_fast);
     if (!p || !e) return 'var(--text-muted)';
     return p > e ? 'var(--success)' : 'var(--danger)';
   }
@@ -455,8 +455,13 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
           ? (bearishPressure ? 'RSI cayendo y presión vendedora (DI- >= DI+)' : 'RSI girando a la baja')
           : 'Esperando DI- >= DI+ o RSI cayendo';
     } else {
-        isContextOk = true;
-        contextDetail = 'Filtro de EMA desactivado';
+        // EMA50 activa: el precio debe estar sobre la EMA50 para abrir LONG
+        const emaFast = parseFloat(this.live?.ema_fast) || 0;
+        isContextOk = emaFast > 0 && price > emaFast;
+        const diff = emaFast > 0 ? (price - emaFast).toFixed(2) : '?';
+        contextDetail = isContextOk
+          ? `Precio $${price.toFixed(2)} sobre EMA50 $${emaFast.toFixed(2)} (+$${diff})`
+          : `Precio $${price.toFixed(2)} bajo EMA50 $${emaFast.toFixed(2)} ($${diff})`;
     }
 
     // 3. Tendencia
@@ -490,7 +495,7 @@ export class SignalsComponent implements OnInit, OnDestroy, AfterViewInit {
         ok: isContextOk,
         tooltip: lookingForShort 
           ? 'Valida el agotamiento del momentum alcista. Requiere que el RSI esté cayendo y que los indicadores direccionales favorezcan a los osos.'
-          : 'Evalúa el contexto general del mercado. En modo agresivo permite operar sin importar la posición respecto a la EMA200.'
+          : 'Filtro EMA50 activo: el precio debe estar por encima de la EMA de 50 períodos para confirmar micro-tendencia alcista y habilitar la entrada LONG.'
       },
       { 
         label: trendLabel, 

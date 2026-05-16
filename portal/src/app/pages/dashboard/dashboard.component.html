@@ -67,7 +67,7 @@
             {{ status.has_position ? (status.trade_type || 'TRADING') : 'WAITING' }}
           </div>
           <p style="font-size: 0.75rem; color: var(--text-muted); margin: 0.5rem 0 0;">
-            {{ status.has_position ? 'DCA Active — Monitoring TP / SL' : 'Scanning RSI + EMA200 for Entry' }}
+            {{ status.has_position ? 'DCA Active — Monitoring TP / SL' : 'Scanning RSI + EMA50 for Entry' }}
           </p>
           <!-- Breakeven Badge -->
           <div *ngIf="status.has_position && status.breakeven" style="margin-top: 0.6rem; display: inline-flex; align-items: center; gap: 0.3rem; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); border-radius: 100px; padding: 0.2rem 0.7rem; font-size: 0.65rem; font-weight: 800; color: var(--success); letter-spacing: 1px;">
@@ -473,7 +473,7 @@
           <h3 style="color: #8b5cf6; margin-bottom: 0.5rem; font-size: 1.1rem; border-bottom: 1px solid rgba(139, 92, 246, 0.2); padding-bottom: 0.25rem;">📈 Indicadores Técnicos</h3>
           <ul style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.8; padding-left: 1.2rem;">
             <li><b>RSI:</b> Mide sobreventa (&lt; 30) y sobrecompra (&gt; 68). Umbral dinámico según ADX.</li>
-            <li><b>EMA 200:</b> Solo LONG si el precio está &gt; 0.3% sobre la EMA200 (contexto alcista).</li>
+            <li><b>EMA 50:</b> Solo LONG si el precio está sobre la EMA50 (micro-tendencia alcista confirmada).</li>
             <li><b>ADX:</b> Fuerza de la tendencia. Controla qué tan agresivo o conservador es el bot.</li>
             <li><b>ATR:</b> Volatilidad. Calcula SL y TP dinámicamente. ATR alto = SL/TP más amplios.</li>
           </ul>
@@ -488,7 +488,7 @@
             <div>• Distancia Mínima DCA: <b>2.5%</b> (Protección anti-cascada)</div>
             <div>• Niveles DCA RSI: <b>Escalonados según Oversold</b></div>
             <div>• Multiplicadores ATR: <b>SL 1.1x | TP 1.2x</b> (alta volatilidad)</div>
-            <div>• Filtro EMA200: <b>Precio debe estar sobre la EMA (Long)</b></div>
+            <div>• Filtro EMA50: <b>Precio debe estar sobre la EMA50 (Long)</b></div>
             <div>• Gestión SL/TP en Binance: <b>Un solo par por posición (se reemplaza en cada DCA)</b></div>
           </div>
         </section>
