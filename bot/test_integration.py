@@ -14,6 +14,7 @@ import random
 import threading
 import time
 import urllib.request
+from dataclasses import replace
 
 from app.api_reporter import ApiReporter
 from app.engine import TradingEngine
@@ -106,13 +107,16 @@ def main() -> None:
         print("\n[FAIL] La API no esta disponible. Arranca primero con: cd api && python main.py")
         raise SystemExit(1)
 
+    # Para la prueba, muestreamos la SMA muy rápido (cada ~50ms reales).
+    cfg = replace(cfg, check_interval_ms=50, sma_sample_ms=50)
+
     state = TradingState(max_sma_window=cfg.sma_period)
 
     # Precios: subida suave (llena la SMA), caída (dispara COMPRA),
     # luego subida (dispara VENTA con ganancia).
     prices = [100.0 + i * 0.2 for i in range(0, cfg.sma_period + 1)]
     prices += [99.0]                      # caída → COMPRA
-    prices += [100.0, 101.0, 102.0]       # subida → VENTA (target ~99.9)
+    prices += [100.0, 101.0, 102.0]       # subida → VENTA (target ~99.4)
 
     stream = FakeStream(prices, state, delay=0.03)
     fake_client = FakeBinanceClient(state)
@@ -125,8 +129,9 @@ def main() -> None:
 
     deadline = time.time() + 25
     while state.total_closed_trades == 0 and time.time() < deadline:
+        engine._maybe_sample()
         engine._process_cycle()
-        time.sleep(0.1)
+        time.sleep(0.03)
 
     stream.stop()
     reporter.flush(timeout=8)

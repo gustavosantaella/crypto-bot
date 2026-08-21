@@ -81,7 +81,8 @@ class Config:
 
     # --- Parámetros de trading ---
     quote_amount: float          # USDT invertidos por operación
-    sma_period: int              # Periodo de la media móvil (ventana de precios)
+    sma_period: int              # Nº de muestras de la ventana de la SMA
+    sma_sample_ms: int           # Cada cuántos ms se muestrea el precio para la SMA
     buy_threshold_pct: float     # Comprar si precio <= SMA * (1 - X%)
     sell_profit_pct: float       # Vender si precio >= compra * (1 + X%)
     check_interval_ms: int       # Cada cuánto evalúa la estrategia (ms)
@@ -121,11 +122,12 @@ class Config:
             binance_rest_url=rest_url,
             binance_ws_url=ws_url,
             api_url=os.getenv("API_URL", "http://localhost:8000").rstrip("/"),
-            quote_amount=_get_float("QUOTE_AMOUNT", 5.0),
+            quote_amount=_get_float("QUOTE_AMOUNT", 10.0),
             sma_period=_get_int("SMA_PERIOD", 20),
-            buy_threshold_pct=_get_float("BUY_THRESHOLD_PCT", 0.8),
-            sell_profit_pct=_get_float("SELL_PROFIT_PCT", 1.0),
-            check_interval_ms=_get_int("CHECK_INTERVAL_MS", 100),
+            sma_sample_ms=_get_int("SMA_SAMPLE_MS", 2000),
+            buy_threshold_pct=_get_float("BUY_THRESHOLD_PCT", 0.3),
+            sell_profit_pct=_get_float("SELL_PROFIT_PCT", 0.5),
+            check_interval_ms=_get_int("CHECK_INTERVAL_MS", 500),
             max_reconnect_delay=_get_float("MAX_RECONNECT_DELAY", 30.0),
             request_timeout=_get_float("REQUEST_TIMEOUT", 5.0),
         )

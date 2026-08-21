@@ -33,6 +33,12 @@ class TradingState:
         Deduplicación: los trades llegan a cientos por segundo y con las
         reconexiones pueden repetirse; se ignora cualquier tick con el mismo
         ``trade id`` que el último procesado.
+
+        NOTA: aquí NO se llena la ventana de la media móvil. La SMA se
+        construye con :meth:`sample`, llamada cada ``SMA_SAMPLE_MS`` desde el
+        engine. Si se llenara con cada trade, la media quedaría clavada al
+        precio actual (los últimos N trades ocurren en milisegundos) y la
+        estrategia nunca detectaría caídas.
         """
         try:
             price = float(trade.get("p"))
@@ -45,7 +51,17 @@ class TradingState:
                 return
             self._latest_trade_id = trade_id
             self._latest_price = price
-            self._sma_window.append(price)
+
+    def sample(self) -> None:
+        """Toma una muestra temporal del precio para la ventana de la SMA.
+
+        El engine la invoca cada ``SMA_SAMPLE_MS`` milisegundos, de forma que
+        la media móvil represente el promedio del ÚLTIMO PERIODO DE TIEMPO
+        (p. ej. 20 muestras x 2 s = últimos 40 s) en vez de los últimos ticks.
+        """
+        with self._lock:
+            if self._latest_price is not None:
+                self._sma_window.append(self._latest_price)
 
     def seed_price(self, price: float) -> None:
         """Siembra el precio inicial (por ejemplo desde REST al arrancar)."""

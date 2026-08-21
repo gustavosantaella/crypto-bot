@@ -55,12 +55,26 @@ class TradingEngine:
         self._next_sell_attempt: float = 0.0
         # Heartbeat: último log periódico de estado (para ver actividad).
         self._last_status_log: float = 0.0
+        # Acumulador (ms) para el muestreo temporal de la SMA.
+        self._sample_accumulator: int = 0
 
     def _get_symbol_info(self) -> dict:
         """Filtros del símbolo, obtenidos una sola vez (se cachean)."""
         if self._symbol_info is None:
             self._symbol_info = self._client.get_symbol_info(self._symbol)
         return self._symbol_info
+
+    def _maybe_sample(self) -> None:
+        """Muestrea el precio para la SMA cada ``SMA_SAMPLE_MS`` ms.
+
+        La SMA debe reflejar un PERIODO DE TIEMPO (no los últimos ticks, que
+        ocurren en milisegundos); si no, precio y media quedan clavados y la
+        estrategia nunca detecta caídas para comprar.
+        """
+        self._sample_accumulator += self._cfg.check_interval_ms
+        if self._sample_accumulator >= self._cfg.sma_sample_ms:
+            self._sample_accumulator = 0
+            self._state.sample()
 
     # ------------------------------------------------------------------
     # Ciclo de vida
@@ -76,6 +90,7 @@ class TradingEngine:
 
         try:
             while not self._stop.is_set():
+                self._maybe_sample()
                 self._process_cycle()
                 self._log_status(interval=15.0)
                 time.sleep(self._cfg.check_interval_ms / 1000.0)
@@ -112,7 +127,8 @@ class TradingEngine:
 
         self._log.info("Esperando datos del stream para llenar la ventana SMA (%d)...", self._cfg.sma_period)
         while not self._stop.is_set() and self._state.sma() is None:
-            time.sleep(0.5)
+            self._maybe_sample()  # muestreo temporal mientras esperamos
+            time.sleep(self._cfg.check_interval_ms / 1000.0)
 
     # ------------------------------------------------------------------
     # Heartbeat / estado
