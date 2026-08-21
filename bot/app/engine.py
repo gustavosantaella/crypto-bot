@@ -53,6 +53,8 @@ class TradingEngine:
         # Timestamp: próxima vez que se permite reintentar una venta tras un
         # fallo de filtro (evita reintentos en bucle cada CHECK_INTERVAL_MS).
         self._next_sell_attempt: float = 0.0
+        # Heartbeat: último log periódico de estado (para ver actividad).
+        self._last_status_log: float = 0.0
 
     def _get_symbol_info(self) -> dict:
         """Filtros del símbolo, obtenidos una sola vez (se cachean)."""
@@ -75,6 +77,7 @@ class TradingEngine:
         try:
             while not self._stop.is_set():
                 self._process_cycle()
+                self._log_status(interval=15.0)
                 time.sleep(self._cfg.check_interval_ms / 1000.0)
         except KeyboardInterrupt:
             self._log.info("Interrupción (Ctrl+C) recibida.")
@@ -110,6 +113,40 @@ class TradingEngine:
         self._log.info("Esperando datos del stream para llenar la ventana SMA (%d)...", self._cfg.sma_period)
         while not self._stop.is_set() and self._state.sma() is None:
             time.sleep(0.5)
+
+    # ------------------------------------------------------------------
+    # Heartbeat / estado
+    # ------------------------------------------------------------------
+    def _log_status(self, interval: float) -> None:
+        """Log periódico con el estado del bot (precio, SMA, umbrales).
+
+        Sirve para confirmar que el bot sigue vivo aunque no haya operado:
+        muestra el precio actual y qué condición necesita para comprar/vender.
+        """
+        now = time.time()
+        if now - self._last_status_log < interval:
+            return
+        self._last_status_log = now
+
+        price = self._state.get_price()
+        if price is None:
+            return
+        sma = self._state.sma()
+        position = self._state.position
+
+        if position is not None:
+            sell_target = position.buy_price * (1.0 + self._cfg.sell_profit_pct / 100.0)
+            potential = (sell_target / position.buy_price - 1.0) * 100.0
+            self._log.info(
+                "[estado] precio=%.2f | posición=ABIERTA (compra=%.2f) | vender si precio>=%.2f (+%.2f%%)",
+                price, position.buy_price, sell_target, potential,
+            )
+        else:
+            buy_limit = (sma * (1.0 - self._cfg.buy_threshold_pct / 100.0)) if sma else None
+            self._log.info(
+                "[estado] precio=%.2f | SMA=%.2f | comprar si precio<=%.2f | sin posición",
+                price, sma or 0.0, buy_limit or 0.0,
+            )
 
     # ------------------------------------------------------------------
     # Ciclo principal
