@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine, ensure_database
-from .routers import orders, transactions
+from .routers import balance, orders, transactions
 
 
 @asynccontextmanager
@@ -43,6 +43,7 @@ app.add_middleware(
 
 app.include_router(transactions.router)
 app.include_router(orders.router)
+app.include_router(balance.router)
 
 
 @app.get("/health")

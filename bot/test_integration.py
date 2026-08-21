@@ -16,6 +16,7 @@ import time
 import urllib.request
 from dataclasses import replace
 
+from app.api_client import ApiClient
 from app.api_reporter import ApiReporter
 from app.engine import TradingEngine
 from app.models import FilledOrder
@@ -121,8 +122,9 @@ def main() -> None:
     stream = FakeStream(prices, state, delay=0.03)
     fake_client = FakeBinanceClient(state)
     reporter = ApiReporter(cfg.api_url, logger)
+    api_client = ApiClient(cfg.api_url, logger)
     strategy = SMAStrategy(state, cfg.buy_threshold_pct, cfg.sell_profit_pct)
-    engine = TradingEngine(cfg, fake_client, stream, state, strategy, reporter, logger)
+    engine = TradingEngine(cfg, fake_client, stream, state, strategy, reporter, api_client, logger)
 
     stream.start()  # hilo que inyecta precios
     engine._warmup()

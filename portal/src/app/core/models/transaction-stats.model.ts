@@ -7,4 +7,11 @@ export interface TransactionStats {
   real: number;
   total_profit: number;
   avg_profit: number;
+  // Ganancia/pérdida separada por ambiente (TEST_MODE).
+  total_profit_test: number;
+  total_profit_real: number;
+  wins_test: number;
+  losses_test: number;
+  wins_real: number;
+  losses_real: number;
 }

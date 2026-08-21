@@ -1,16 +1,19 @@
 import { Component, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { combineLatest, switchMap } from 'rxjs';
+import { catchError, combineLatest, of, switchMap } from 'rxjs';
 
+import { AssetBalance, AccountBalance } from '../../core/models/balance.model';
+import { BalanceService } from '../../core/services/balance.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { TransactionRowComponent } from '../../shared/components/transaction-row.component';
+import { NumPipe } from '../../shared/pipes/num.pipe';
 import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, TransactionRowComponent, UsdtPipe],
+  imports: [RouterLink, TransactionRowComponent, UsdtPipe, NumPipe],
   template: `
     <div class="page">
       <header class="page__header">
@@ -21,6 +24,71 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
         <button class="btn" (click)="refresh()">Refrescar</button>
       </header>
 
+      <!-- Cuenta spot -->
+      <section class="card section">
+        <header class="card__header">
+          <h2>Cuenta spot</h2>
+          <span class="badge" [class.badge--test]="balance()?.test_mode" [class.badge--real]="!balance()?.test_mode">
+            {{ balance()?.test_mode ? 'TESTNET' : 'PRODUCCIÓN' }}
+          </span>
+        </header>
+        @if (balance(); as b) {
+          <div class="balance-grid">
+            @for (asset of mainAssets(b); track asset.asset) {
+              <div class="stat-card">
+                <span class="stat-card__label">{{ asset.asset }}</span>
+                <span class="stat-card__value stat-card__value--small">{{ asset.free | num }}</span>
+              </div>
+            }
+            @if (otherAssets(b).length > 0) {
+              <div class="stat-card">
+                <span class="stat-card__label">Otros</span>
+                <div class="chips">
+                  @for (a of otherAssets(b); track a.asset) {
+                    <span class="chip">{{ a.asset }} {{ a.free | num }}</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="empty">Balance no disponible (¿la API y las keys de Binance están bien?).</p>
+        }
+      </section>
+
+      <!-- Resultado por ambiente (TEST / REAL) -->
+      <section class="result-grid">
+        <div class="card result-card">
+          <header class="result-card__header">
+            <span class="badge badge--test">TESTNET</span>
+            <span class="result-card__count">{{ stats()?.test_mode ?? 0 }} ciclos</span>
+          </header>
+          <p class="result-card__profit"
+             [class.text--ok]="(stats()?.total_profit_test ?? 0) >= 0"
+             [class.text--loss]="(stats()?.total_profit_test ?? 0) < 0">
+            {{ stats()?.total_profit_test ?? 0 | usdt }}
+          </p>
+          <p class="result-card__detail">
+            {{ stats()?.wins_test ?? 0 }} ganadas · {{ stats()?.losses_test ?? 0 }} perdidas
+          </p>
+        </div>
+        <div class="card result-card">
+          <header class="result-card__header">
+            <span class="badge badge--real">REAL</span>
+            <span class="result-card__count">{{ stats()?.real ?? 0 }} ciclos</span>
+          </header>
+          <p class="result-card__profit"
+             [class.text--ok]="(stats()?.total_profit_real ?? 0) >= 0"
+             [class.text--loss]="(stats()?.total_profit_real ?? 0) < 0">
+            {{ stats()?.total_profit_real ?? 0 | usdt }}
+          </p>
+          <p class="result-card__detail">
+            {{ stats()?.wins_real ?? 0 }} ganadas · {{ stats()?.losses_real ?? 0 }} perdidas
+          </p>
+        </div>
+      </section>
+
+      <!-- Stats generales -->
       <section class="stats-grid">
         <div class="stat-card">
           <span class="stat-card__label">Total de ciclos</span>
@@ -53,6 +121,7 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
         </div>
       </section>
 
+      <!-- Últimas transacciones -->
       <section class="card">
         <header class="card__header">
           <h2>Últimas transacciones</h2>
@@ -80,18 +149,33 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
       </section>
     </div>
   `,
+
   styles: [`
     .page__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
     .page__subtitle { color: var(--muted); margin: 0.25rem 0 0; }
+    .section { margin-bottom: 1.5rem; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
+    .balance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding: 1.2rem; }
+    .stat-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.1rem; display: flex; flex-direction: column; gap: 0.35rem; }
     .stat-card__label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .stat-card__value { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stat-card__value--small { font-size: 1.1rem; }
+    .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .chip { background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 0.15rem 0.55rem; font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .result-card { padding: 1.1rem 1.2rem; }
+    .result-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+    .result-card__count { color: var(--muted); font-size: 0.85rem; }
+    .result-card__profit { font-size: 1.7rem; font-weight: 800; margin: 0.25rem 0; font-variant-numeric: tabular-nums; }
+    .result-card__detail { color: var(--muted); margin: 0; font-size: 0.85rem; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
     .card__header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.2rem; border-bottom: 1px solid var(--border); }
     .card__header h2 { font-size: 1.05rem; margin: 0; }
+    .badge { padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.03em; }
+    .badge--test { background: rgba(148, 163, 184, 0.18); color: #94a3b8; }
+    .badge--real { background: rgba(34, 211, 238, 0.15); color: #22d3ee; }
     .link { color: var(--accent); text-decoration: none; font-size: 0.9rem; }
-    .empty { text-align: center; color: var(--muted); padding: 2rem !important; }
+    .empty { text-align: center; color: var(--muted); padding: 2rem !important; margin: 0; }
     .th--num { text-align: right; }
     .text--ok { color: var(--ok); }
     .text--warn { color: var(--warn); }
@@ -100,6 +184,7 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
 })
 export class DashboardComponent {
   private readonly transactionService = inject(TransactionService);
+  private readonly balanceService = inject(BalanceService);
   private readonly reloadTrigger = signal(0);
 
   protected readonly stats = toSignal(
@@ -112,6 +197,26 @@ export class DashboardComponent {
       switchMap(() => this.transactionService.list({ limit: 10 })),
     ),
   );
+  protected readonly balance = toSignal(
+    combineLatest([toObservable(this.reloadTrigger)]).pipe(
+      switchMap(() => this.balanceService.get().pipe(catchError(() => of(null)))),
+    ),
+  );
+
+  /** Activos principales del par (p. ej. BTC y USDT) + 2 extras con saldo. */
+  mainAssets(balance: AccountBalance): AssetBalance[] {
+    const wanted = [balance.currency, 'USDT'];
+    const main = balance.balances.filter((x) => wanted.includes(x.asset));
+    const rest = balance.balances.filter((x) => !wanted.includes(x.asset));
+    return [...main, ...rest.slice(0, 2)];
+  }
+
+  /** Resto de activos con saldo (máx. 5 chips para no saturar la UI). */
+  otherAssets(balance: AccountBalance): AssetBalance[] {
+    const wanted = [balance.currency, 'USDT'];
+    const rest = balance.balances.filter((x) => !wanted.includes(x.asset));
+    return rest.slice(0, 5);
+  }
 
   refresh(): void {
     this.reloadTrigger.update((n) => n + 1);

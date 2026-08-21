@@ -18,8 +18,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import datetime
 
 from config import Config
+from .api_client import ApiClient, ApiClientError
 from .api_reporter import ApiReporter
 from .binance_client import BinanceAPIError, BinanceClient
 from .models import Position, TradeDecision
@@ -37,6 +39,7 @@ class TradingEngine:
         state: TradingState,
         strategy: SMAStrategy,
         reporter: ApiReporter,
+        api_client: ApiClient,
         logger: logging.Logger,
     ) -> None:
         self._cfg = config
@@ -45,6 +48,7 @@ class TradingEngine:
         self._state = state
         self._strategy = strategy
         self._reporter = reporter
+        self._api_client = api_client
         self._log = logger.getChild("engine")
         self._stop = threading.Event()
         self._symbol = config.symbol
@@ -85,6 +89,7 @@ class TradingEngine:
                        self._cfg.buy_threshold_pct, self._cfg.sell_profit_pct)
         self._log.info("Stream WebSocket: %s", self._cfg.binance_ws_url)
 
+        self._recover_open_position()
         self._stream.start()
         self._warmup()
 
@@ -111,6 +116,72 @@ class TradingEngine:
             self._state.total_closed_trades,
             self._state.total_profit,
         )
+
+    def _recover_open_position(self) -> None:
+        """Reconcilia posiciones abiertas al arrancar.
+
+        Si el proceso anterior se cerró con una compra sin vender, la
+        transacción quedó OPEN en la API y el activo (p. ej. BTC) sigue en la
+        cuenta spot de Binance. Aquí se recupera esa posición en memoria para
+        continuar el ciclo (vender cuando el precio suba). Si el activo ya no
+        está en la cuenta, la transacción se marca CANCELED.
+        """
+        try:
+            open_txs = self._api_client.get_open_transactions()
+        except ApiClientError as exc:
+            self._log.warning("No se pudo consultar transacciones OPEN (%s); se omite la reconciliación.", exc)
+            return
+        if not open_txs:
+            self._log.info("No hay transacciones OPEN previas; arranque limpio.")
+            return
+
+        base_asset = self._cfg.currency
+        try:
+            balances = self._client.get_account_balances()
+        except BinanceAPIError as exc:
+            self._log.warning("No se pudo consultar el balance (%s); se omite la reconciliación.", exc)
+            return
+        base_free = balances.get(base_asset, 0.0)
+
+        # Se procesan TODAS las OPEN huérfanas: se recupera la primera viable
+        # (el bot solo mantiene una posición) y el resto se cancela.
+        position_recovered = False
+        for tx in open_txs:
+            tx_id = tx["id"]
+            buy_qty = float(tx.get("buy_quantity") or 0.0)
+            buy_price = float(tx.get("buy_price") or 0.0)
+            buy_quote = float(tx.get("buy_quote") or 0.0)
+            buy_order_id = int(tx.get("buy_order_id") or 0)
+
+            if not position_recovered and buy_qty > 0 and base_free >= buy_qty * 0.999:
+                try:
+                    buy_time_ms = int(datetime.fromisoformat(tx["buy_time"]).timestamp() * 1000)
+                except (ValueError, KeyError, TypeError):
+                    buy_time_ms = int(time.time() * 1000)
+                position = Position(
+                    symbol=self._symbol,
+                    buy_order_id=buy_order_id,
+                    buy_price=buy_price,
+                    buy_quantity=buy_qty,
+                    buy_quote=buy_quote,
+                    buy_time=buy_time_ms,
+                    test_mode=self._cfg.test_mode,
+                )
+                self._state.open_position(position)
+                position_recovered = True
+                self._log.info(
+                    "Posición recuperada (tx #%s): %.8f %s a %.2f. Se continuará el ciclo y se venderá cuando el precio suba.",
+                    tx_id, buy_qty, base_asset, buy_price,
+                )
+            else:
+                try:
+                    self._api_client.cancel_transaction(tx_id)
+                    self._log.warning(
+                        "Transacción OPEN #%s cancelada: activo %s (%.8f) no respaldado en la cuenta spot (libre=%.8f).",
+                        tx_id, base_asset, buy_qty, base_free,
+                    )
+                except ApiClientError as exc:
+                    self._log.warning("No se pudo cancelar la transacción #%s: %s", tx_id, exc)
 
     # ------------------------------------------------------------------
     # Arranque

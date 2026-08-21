@@ -62,12 +62,27 @@ def get_stats(db: Db) -> TransactionStats:
     closed_count = db.scalar(select(func.count(Transaction.id)).where(Transaction.status == "CLOSED")) or 0
     test_count = db.scalar(select(func.count(Transaction.id)).where(Transaction.test_mode.is_(True))) or 0
     real_count = total - test_count
-    total_profit = (
-        db.scalar(
-            select(func.coalesce(func.sum(Transaction.profit), 0)).where(Transaction.status == "CLOSED")
+
+    def _sum_profit(*filters) -> float:
+        stmt = (
+            select(func.coalesce(func.sum(Transaction.profit), 0))
+            .where(Transaction.status == "CLOSED", *filters)
         )
-        or 0.0
-    )
+        return float(db.scalar(stmt) or 0.0)
+
+    def _count(*filters) -> int:
+        stmt = select(func.count(Transaction.id)).where(Transaction.status == "CLOSED", *filters)
+        return int(db.scalar(stmt) or 0)
+
+    total_profit = _sum_profit()
+    total_profit_test = _sum_profit(Transaction.test_mode.is_(True))
+    total_profit_real = _sum_profit(Transaction.test_mode.is_(False))
+
+    wins_test = _count(Transaction.test_mode.is_(True), Transaction.profit > 0)
+    losses_test = _count(Transaction.test_mode.is_(True), Transaction.profit < 0)
+    wins_real = _count(Transaction.test_mode.is_(False), Transaction.profit > 0)
+    losses_real = _count(Transaction.test_mode.is_(False), Transaction.profit < 0)
+
     avg_profit = total_profit / closed_count if closed_count else 0.0
     return TransactionStats(
         total=total,
@@ -75,9 +90,27 @@ def get_stats(db: Db) -> TransactionStats:
         closed=closed_count,
         test_mode=test_count,
         real=real_count,
-        total_profit=float(total_profit),
-        avg_profit=float(avg_profit),
+        total_profit=total_profit,
+        avg_profit=avg_profit,
+        total_profit_test=total_profit_test,
+        total_profit_real=total_profit_real,
+        wins_test=wins_test,
+        losses_test=losses_test,
+        wins_real=wins_real,
+        losses_real=losses_real,
     )
+
+
+@router.post("/{transaction_id}/cancel", response_model=TransactionOut)
+def cancel_transaction(transaction_id: int, db: Db) -> Transaction:
+    """Cancela una transacción OPEN huérfana (p. ej. tras matar el bot)."""
+    transaction = db.get(Transaction, transaction_id)
+    if transaction is None:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    transaction.status = "CANCELED"
+    db.commit()
+    db.refresh(transaction)
+    return transaction
 
 
 @router.get("/{transaction_id}", response_model=TransactionOut)

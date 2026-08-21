@@ -102,10 +102,12 @@ API_URL=http://localhost:8000
 BINANCE_WEBSOCKET_URL=wss://stream.binance.com/stream?streams=btcusdt@trade
 
 # --- Parámetros de trading ---
-QUOTE_AMOUNT=20          # USDT invertidos en cada compra
-SMA_PERIOD=20            # Periodo de la media móvil (referencia)
-BUY_THRESHOLD_PCT=0.8    # Comprar si precio <= SMA * (1 - 0.8%)
-SELL_PROFIT_PCT=1.0      # Vender si precio >= compra * (1 + 1.0%)
+QUOTE_AMOUNT=10          # USDT invertidos en cada compra (>= minNotional)
+SMA_PERIOD=20            # Nº de muestras de la ventana de la media móvil
+SMA_SAMPLE_MS=500        # Cada cuántos ms se muestrea el precio para la SMA
+                         # (500ms => la SMA cubre los últimos 10 s)
+BUY_THRESHOLD_PCT=0.05   # Comprar si precio <= SMA * (1 - 0.05%)
+SELL_PROFIT_PCT=0.05     # Vender si precio >= compra * (1 + 0.05%)
 CHECK_INTERVAL_MS=500    # Cada cuánto se evalúa la estrategia
 MAX_RECONNECT_DELAY=30   # Backoff máximo (s) del WebSocket
 REQUEST_TIMEOUT=5        # Timeout de peticiones REST
@@ -136,10 +138,18 @@ DB_HOST=localhost
 DB_USER=root
 DB_PASS=root
 DB_NAME=cryptobot
+
+# Credenciales de Binance (copiadas de bot/.env): se usan para consultar el
+# balance de la cuenta spot desde la API (GET /api/balance).
+TEST_MODE=1
+CURRENCY_TO_USE=BTC
+BINANCE_API_KEY=tu_api_key
+BINANCE_SECRET_KEY=tu_secret_key
 ```
 
 La API crea automáticamente la base de datos y las tablas al arrancar
-(`transactions` y `orders`).
+(`transactions` y `orders`). `TEST_MODE` debe coincidir con el del bot: la
+API consulta el balance en la **testnet** o en **producción** según ese valor.
 
 ---
 

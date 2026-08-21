@@ -63,6 +63,13 @@ class TransactionStats(BaseModel):
     real: int
     total_profit: float
     avg_profit: float
+    # Ganancia/pérdida separada por ambiente (TEST_MODE).
+    total_profit_test: float
+    total_profit_real: float
+    wins_test: int
+    losses_test: int
+    wins_real: int
+    losses_real: int
 
 
 class OrderCreate(BaseModel):

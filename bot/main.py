@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from app.api_client import ApiClient
 from app.api_reporter import ApiReporter
 from app.binance_client import BinanceClient
 from app.engine import TradingEngine
@@ -47,13 +48,14 @@ def main() -> None:
     state = TradingState(max_sma_window=cfg.sma_period)
     client = BinanceClient(cfg, logger)
     reporter = ApiReporter(cfg.api_url, logger)
+    api_client = ApiClient(cfg.api_url, logger)
     stream = PriceStream(
         cfg.binance_ws_url,
         on_trade=state.update_tick,
         max_reconnect_delay=cfg.max_reconnect_delay,
     )
     strategy = SMAStrategy(state, cfg.buy_threshold_pct, cfg.sell_profit_pct)
-    engine = TradingEngine(cfg, client, stream, state, strategy, reporter, logger)
+    engine = TradingEngine(cfg, client, stream, state, strategy, reporter, api_client, logger)
 
     engine.run()
 

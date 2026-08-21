@@ -146,6 +146,19 @@ class BinanceClient:
             "min_notional": min_notional,
         }
 
+    def get_account_balances(self) -> dict[str, float]:
+        """Balance de la cuenta spot: {activo: cantidad libre}.
+
+        Se usa al arrancar para reconciliar posiciones abiertas (si se mató
+        el bot con una compra sin vender, el BTC sigue en la cuenta).
+        """
+        account = self._signed("GET", "/api/v3/account")
+        balances = {
+            balance["asset"]: float(balance["free"])
+            for balance in account.get("balances", [])
+        }
+        return {asset: free for asset, free in balances.items() if free > 0}
+
     # ------------------------------------------------------------------
     # Órdenes de mercado (spot)
     # ------------------------------------------------------------------
