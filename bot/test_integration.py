@@ -63,11 +63,19 @@ class FakeBinanceClient:
     def __init__(self, state: TradingState):
         self._state = state
         self._orders: list[FilledOrder] = []
+        self.symbol_info = {
+            "step_size": 0.00001,
+            "min_qty": 0.00001,
+            "min_notional": 5.0,
+        }
 
     def get_ticker_price(self, symbol: str) -> float:
         return self._state.get_price()
 
-    def market_buy(self, symbol: str, quote_amount: float) -> FilledOrder:
+    def get_symbol_info(self, symbol: str) -> dict:
+        return self.symbol_info
+
+    def market_buy(self, symbol: str, quote_amount: float, reference_price: float | None = None) -> FilledOrder:
         price = self._state.get_price() * 0.999
         qty = quote_amount / price
         order = FilledOrder(

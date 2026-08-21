@@ -43,6 +43,18 @@ def floor_to_step(value: float, step: float) -> float:
     return round(floored, decimals)
 
 
+def ceil_to_step(value: float, step: float) -> float:
+    """Ajusta una cantidad al step size del símbolo (hacia arriba).
+
+    Ej.: ceil_to_step(0.0000662, 0.00001) -> 0.00007
+    """
+    if step <= 0:
+        return value
+    decimals = max(0, int(round(-math.log10(step))))
+    ceiled = math.ceil(value / step - 1e-9) * step
+    return round(ceiled, decimals)
+
+
 class BinanceClient:
     def __init__(self, config: Config, logger: logging.Logger) -> None:
         self._cfg = config
@@ -137,30 +149,37 @@ class BinanceClient:
     # ------------------------------------------------------------------
     # Órdenes de mercado (spot)
     # ------------------------------------------------------------------
-    def market_buy(self, symbol: str, quote_amount: float) -> FilledOrder:
-        """Compra al mercado usando ``quoteOrderQty`` (gasta ``quote_amount`` USDT).
+    def market_buy(self, symbol: str, quote_amount: float, reference_price: float | None = None) -> FilledOrder:
+        """Compra al mercado la cantidad de ``symbol`` que alcance con ``quote_amount`` USDT.
 
-        Si Binance rechaza ``quoteOrderQty`` se reintenta calculando la
-        cantidad exacta a partir del step size del símbolo.
+        La cantidad se alinea al *step size* del símbolo y se garantiza que su
+        valor nocional sea >= al ``minNotional`` para que la venta posterior
+        NUNCA sea rechazada con ``-1013 Filter failure: NOTIONAL``.
+
+        Si ``quote_amount`` no alcanza el ``minNotional`` (por el redondeo al
+        step), la cantidad se sube al siguiente múltiplo del step que sí lo
+        cumpla (p. ej. 5 USDT pedidos -> 0.00007 BTC ≈ 5.29 USDT).
         """
-        try:
-            data = self._signed(
-                "POST", "/api/v3/order",
-                {"symbol": symbol, "side": "BUY", "type": "MARKET", "quoteOrderQty": f"{quote_amount:.2f}"},
+        info = self.get_symbol_info(symbol)
+        price = reference_price or self.get_ticker_price(symbol)
+        step = info["step_size"]
+        min_notional = info["min_notional"]
+
+        quantity = floor_to_step(quote_amount / price, step)
+        if quantity * price < min_notional:
+            quantity = ceil_to_step(min_notional / price, step)
+            self._log.warning(
+                "quote_amount=%.2f no cubre el minNotional (%.2f USDT); "
+                "cantidad de compra ajustada a %.8f",
+                quote_amount, min_notional, quantity,
             )
-        except BinanceAPIError as exc:
-            # Fallback: cantidad explícita alineada al step size.
-            if exc.code in (-1013, -1111, -1100):
-                self._log.warning("quoteOrderQty rechazado (%s), usando quantity", exc.code)
-                price = self.get_ticker_price(symbol)
-                info = self.get_symbol_info(symbol)
-                quantity = floor_to_step(quote_amount / price, info["step_size"])
-                data = self._signed(
-                    "POST", "/api/v3/order",
-                    {"symbol": symbol, "side": "BUY", "type": "MARKET", "quantity": f"{quantity:.8f}"},
-                )
-            else:
-                raise
+        if quantity <= 0:
+            raise BinanceAPIError(-1, f"cantidad de compra inválida (quote={quote_amount}, price={price})")
+
+        data = self._signed(
+            "POST", "/api/v3/order",
+            {"symbol": symbol, "side": "BUY", "type": "MARKET", "quantity": f"{quantity:.8f}"},
+        )
         return FilledOrder.from_binance(data)
 
     def market_sell(self, symbol: str, quantity: float) -> FilledOrder:

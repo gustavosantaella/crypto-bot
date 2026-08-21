@@ -48,6 +48,17 @@ class TradingEngine:
         self._log = logger.getChild("engine")
         self._stop = threading.Event()
         self._symbol = config.symbol
+        # Caché de los filtros del símbolo (step size, minNotional...).
+        self._symbol_info: dict | None = None
+        # Timestamp: próxima vez que se permite reintentar una venta tras un
+        # fallo de filtro (evita reintentos en bucle cada CHECK_INTERVAL_MS).
+        self._next_sell_attempt: float = 0.0
+
+    def _get_symbol_info(self) -> dict:
+        """Filtros del símbolo, obtenidos una sola vez (se cachean)."""
+        if self._symbol_info is None:
+            self._symbol_info = self._client.get_symbol_info(self._symbol)
+        return self._symbol_info
 
     # ------------------------------------------------------------------
     # Ciclo de vida
@@ -106,6 +117,8 @@ class TradingEngine:
     def _process_cycle(self) -> None:
         if self._state.order_in_flight:
             return  # no operar hasta confirmar la orden anterior
+        if time.time() < self._next_sell_attempt:
+            return  # cooldown tras un fallo de filtro (p. ej. NOTIONAL)
 
         decision = self._strategy.evaluate()
         if decision is None:
@@ -119,6 +132,9 @@ class TradingEngine:
         except BinanceAPIError as exc:
             self._log.error("Fallo al ejecutar %s: %s", decision.action, exc)
             self._state.order_in_flight = False
+            if exc.code == -1013 and "NOTIONAL" in str(exc):
+                self._next_sell_attempt = time.time() + 60
+                self._log.error("La orden falló por el filtro NOTIONAL; se reintentará en 60s.")
 
     def _execute_buy(self, decision: TradeDecision) -> None:
         if self._state.is_busy():
@@ -128,7 +144,7 @@ class TradingEngine:
         self._log.info(">>> COMPRAR %.4f USDT de %s (precio tick: %.2f)",
                        self._cfg.quote_amount, self._symbol, decision.price)
 
-        order = self._client.market_buy(self._symbol, self._cfg.quote_amount)
+        order = self._client.market_buy(self._symbol, self._cfg.quote_amount, reference_price=decision.price)
 
         if order.executed_qty <= 0 or order.status != "FILLED":
             self._log.error("La compra no se ejecutó (status=%s).", order.status)
@@ -159,6 +175,22 @@ class TradingEngine:
         position = self._state.position
         if position is None:
             return
+
+        # Validación preventiva del notional mínimo: Binance rechaza la orden
+        # con -1013 NOTIONAL si la cantidad a vender vale menos que el mínimo.
+        try:
+            info = self._get_symbol_info()
+            notional = position.buy_quantity * decision.price
+            if notional < info["min_notional"]:
+                self._next_sell_attempt = time.time() + 60
+                self._log.error(
+                    "Venta bloqueada: nocional %.2f USDT < minNotional %.2f USDT "
+                    "(cantidad %.8f). Se reintentará en 60s.",
+                    notional, info["min_notional"], position.buy_quantity,
+                )
+                return
+        except BinanceAPIError as exc:
+            self._log.warning("No se pudo validar el minNotional: %s", exc)
 
         self._state.order_in_flight = True
         self._log.info(">>> VENDER %.8f %s (precio tick: %.2f)",
