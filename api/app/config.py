@@ -28,6 +28,7 @@ class Settings:
     binance_api_key_prod: str
     binance_secret_key_prod: str
     binance_rest_url: str
+    binance_ws_stream: str
 
     @property
     def symbol(self) -> str:
@@ -36,7 +37,24 @@ class Settings:
     @classmethod
     def load(cls) -> "Settings":
         test_mode = os.getenv("TEST_MODE", "1").strip().lower() in {"1", "true", "yes", "on"}
+        currency = os.getenv("CURRENCY_TO_USE", "BTC").upper().strip()
         rest_url = "https://testnet.binance.vision" if test_mode else "https://api.binance.com"
+
+        # Stream de precios: se usa BINANCE_WEBSOCKET_URL (si existe) para
+        # saber qué stream escuchar (ej. btcusdt@trade); si no, se deriva del
+        # símbolo configurado.
+        stream_name = f"{currency.lower()}usdt@trade"
+        raw_ws = os.getenv("BINANCE_WEBSOCKET_URL", "")
+        if raw_ws:
+            try:
+                from urllib.parse import parse_qs, urlparse
+
+                streams = parse_qs(urlparse(raw_ws).query).get("streams")
+                if streams and streams[0]:
+                    stream_name = streams[0]
+            except Exception:  # noqa: BLE001
+                pass
+
         return cls(
             db_host=os.getenv("DB_HOST", "localhost"),
             db_user=os.getenv("DB_USER", "root"),
@@ -44,12 +62,13 @@ class Settings:
             db_name=os.getenv("DB_NAME", "cryptobot"),
             db_port=int(os.getenv("DB_PORT", "3306")),
             test_mode=test_mode,
-            currency=os.getenv("CURRENCY_TO_USE", "BTC").upper().strip(),
+            currency=currency,
             binance_api_key_test=os.getenv("BINANCE_API_KEY_TEST") or os.getenv("BINANCE_API_KEY", ""),
             binance_secret_key_test=os.getenv("BINANCE_SECRET_KEY_TEST") or os.getenv("BINANCE_SECRET_KEY", ""),
             binance_api_key_prod=os.getenv("BINANCE_API_KEY_PROD", ""),
             binance_secret_key_prod=os.getenv("BINANCE_SECRET_KEY_PROD", ""),
             binance_rest_url=rest_url,
+            binance_ws_stream=stream_name,
         )
 
 

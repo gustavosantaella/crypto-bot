@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs';
+import { filter, Observable, Subject } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 
@@ -12,8 +12,7 @@ export interface ServerEvent {
  * Conexión SSE con la API (`GET /api/events`).
  *
  * El backend publica eventos cuando se registra una compra/venta/cancelación
- * de una transacción; aquí se exponen como un Observable para que los
- * componentes recarguen sus datos en tiempo real.
+ * y también el precio en vivo de Binance (evento ``price``, cada ~2s).
  *
  * `EventSource` se reconecta automáticamente si la conexión se cae.
  */
@@ -23,8 +22,14 @@ export class EventService {
   private readonly connectionState = new Subject<boolean>();
   private readonly source = new EventSource(`${environment.apiUrl}/events`);
 
-  /** Emite con cada evento de transacción (created/updated/canceled). */
-  readonly changes$ = this.events.asObservable();
+  /** Solo eventos de transacción (created/updated/canceled). */
+  readonly changes$: Observable<ServerEvent> = this.events.pipe(
+    filter((e) => e.type.startsWith('transaction.')),
+  );
+  /** Solo eventos de precio en vivo. */
+  readonly priceUpdates$: Observable<ServerEvent> = this.events.pipe(
+    filter((e) => e.type === 'price'),
+  );
   /** Estado de la conexión SSE (true = conectado, false = desconectado). */
   readonly connection$ = this.connectionState.asObservable();
 
@@ -40,6 +45,7 @@ export class EventService {
     this.source.addEventListener('transaction.created', (e) => this.emit('transaction.created', e));
     this.source.addEventListener('transaction.updated', (e) => this.emit('transaction.updated', e));
     this.source.addEventListener('transaction.canceled', (e) => this.emit('transaction.canceled', e));
+    this.source.addEventListener('price', (e) => this.emit('price', e));
   }
 
   private emit(type: string, event: MessageEvent): void {

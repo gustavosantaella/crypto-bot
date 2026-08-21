@@ -24,6 +24,11 @@
     </div>
     <p class="ambient__hint">Viendo: {{ testMode() ? 'Testnet' : 'Producción' }}</p>
 
+    <div class="price">
+      <span class="price__label">{{ price()?.symbol ?? '…' }} · en vivo</span>
+      <span class="price__value">{{ price()?.price != null ? (price()!.price | num:2) : '—' }}</span>
+    </div>
+
     <p class="sidebar__foot">Bot spot · Binance</p>
   </nav>
 
