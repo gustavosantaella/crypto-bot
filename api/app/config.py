@@ -20,11 +20,13 @@ class Settings:
     db_name: str
     db_port: int
 
-    # --- Binance (balance spot) ---
+    # --- Binance (balance spot de ambos ambientes) ---
     test_mode: bool
     currency: str
-    binance_api_key: str
-    binance_secret_key: str
+    binance_api_key_test: str
+    binance_secret_key_test: str
+    binance_api_key_prod: str
+    binance_secret_key_prod: str
     binance_rest_url: str
 
     @property
@@ -43,8 +45,10 @@ class Settings:
             db_port=int(os.getenv("DB_PORT", "3306")),
             test_mode=test_mode,
             currency=os.getenv("CURRENCY_TO_USE", "BTC").upper().strip(),
-            binance_api_key=os.getenv("BINANCE_API_KEY", ""),
-            binance_secret_key=os.getenv("BINANCE_SECRET_KEY", ""),
+            binance_api_key_test=os.getenv("BINANCE_API_KEY_TEST") or os.getenv("BINANCE_API_KEY", ""),
+            binance_secret_key_test=os.getenv("BINANCE_SECRET_KEY_TEST") or os.getenv("BINANCE_SECRET_KEY", ""),
+            binance_api_key_prod=os.getenv("BINANCE_API_KEY_PROD", ""),
+            binance_secret_key_prod=os.getenv("BINANCE_SECRET_KEY_PROD", ""),
             binance_rest_url=rest_url,
         )
 

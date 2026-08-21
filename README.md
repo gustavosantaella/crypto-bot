@@ -219,9 +219,35 @@ precio de referencia:
 | 2 compras sin vender              | `is_busy()` bloquea compras mientras haya posición abierta o orden en vuelo. |
 | La API lentifica el trading       | `ApiReporter` envía todo en **hilos de background** (cola FIFO + retries). |
 | La venta sin ganancia             | La estrategia exige `precio >= compra * (1 + margen)` para vender.    |
+| Venta rechazada por `minNotional` | La compra se ajusta al step size y garantiza notional >= mínimo (nunca quedas con una posición invendible). |
 | Caída del WebSocket               | `PriceStream` reconecta con **backoff exponencial** (1s, 2s, 4s… máx. `MAX_RECONNECT_DELAY`) indefinidamente. |
 | Reloj local desincronizado        | El cliente sincroniza su reloj con `GET /api/v3/time` (offset) al arrancar. |
+| La SMA no detecta caídas          | La SMA se construye con **muestreo temporal** (`SMA_SAMPLE_MS`) en vez de por-trade, para reflejar un periodo real. |
 | Orden parcial/fallida             | Se valida `status == FILLED` y `executedQty > 0` antes de actualizar el estado. |
+
+### ¿Qué pasa si mato el bot con una operación abierta?
+
+La posición vive en memoria; al matar el bot se pierde, pero la transacción
+queda `OPEN` en la API y el activo (BTC) sigue en la cuenta spot. Al **reiniciar**,
+el bot ejecuta una **reconciliación automática**:
+
+1. Consulta las transacciones `OPEN` en la API.
+2. Consulta el balance spot real de Binance.
+3. Si el BTC sigue en la cuenta → **recupera la posición** y continúa el ciclo
+   (venderá cuando el precio suba).
+4. Si el BTC ya no está (o la cantidad no cuadra) → **cancela** la transacción
+   (`CANCELED`).
+
+### Balance spot y ganancias/pérdidas
+
+- La **API** consulta el balance de la cuenta spot de Binance (`GET /api/balance`)
+  usando las credenciales de `api/.env` (claves `_TEST` y `_PROD` para cada
+  ambiente).
+- El **portal** tiene un **switch en el sidebar** (TESTNET ⇄ PRODUCCIÓN) que
+  selecciona el ambiente a visualizar: balance spot, stats, transacciones y
+  órdenes se filtran automáticamente. Es solo visualización, no afecta al bot.
+- Las stats separan ganancias/pérdidas por ambiente (`wins_*`, `losses_*`,
+  `total_profit_*`).
 
 ### Hilos del bot
 
@@ -268,11 +294,30 @@ Tabla auxiliar **`orders`**: auditoría de cada orden enviada a Binance
 | GET    | `/health`                         | Estado de la API                               |
 | POST   | `/api/transactions`               | Crear transacción (el bot al comprar)          |
 | PATCH  | `/api/transactions/{id}`          | Cerrar transacción (el bot al vender)          |
+| POST   | `/api/transactions/{id}/cancel`   | Cancelar una OPEN huérfana (reconciliación)    |
 | GET    | `/api/transactions`               | Listar (`?test_mode=`, `?status=`, `limit`, `offset`) |
 | GET    | `/api/transactions/{id}`          | Detalle                                        |
-| GET    | `/api/transactions/stats`         | Resumen (totales, ganancia)                    |
+| GET    | `/api/transactions/stats`         | Resumen + ganancia/pérdida por ambiente (TEST/REAL) |
 | POST   | `/api/orders`                     | Registrar una orden (auditoría)                |
 | GET    | `/api/orders`                     | Listar órdenes                                 |
+| GET    | `/api/balance`                    | Balance de la cuenta spot de Binance           |
+| GET    | `/api/events`                     | **SSE**: eventos en tiempo real (compra/venta) |
+
+### Actualizaciones en tiempo real (SSE)
+
+Cuando el bot registra una compra/venta/cancelación, la API publica un evento
+**SSE** (`text/event-stream`) que el portal consume con `EventSource` y
+actualiza el dashboard, la lista y el detalle **sin recargar la página**:
+
+```
+GET /api/events
+event: transaction.created     ← el bot compró
+event: transaction.updated     ← el bot vendió (se cerró el ciclo)
+event: transaction.canceled    ← se canceló una OPEN huérfana
+```
+
+Incluye un *heartbeat* cada 15 s para mantener la conexión viva, y el
+`EventSource` del navegador se reconecta automáticamente si se cae.
 
 ---
 
@@ -305,16 +350,18 @@ crypto-bot/
 │   ├── .env                  # Credenciales y parámetros
 │   ├── main.py               # Punto de entrada
 │   ├── config.py             # Carga .env y deriva URLs testnet/real
+│   ├── demo_trade.py         # Demo: compra+venta real en testnet
 │   └── app/
-│       ├── binance_client.py # REST Binance (HMAC-SHA256)
+│       ├── binance_client.py # REST Binance (HMAC-SHA256) + balance
 │       ├── price_stream.py   # WebSocket con reconexión + backoff
 │       ├── state.py          # Estado thread-safe (precio, posición, dedup)
-│       ├── strategy.py       # SMA: comprar barato / vender caro
-│       ├── engine.py         # Motor: 1 operación por ciclo
+│       ├── strategy.py       # SMA temporal: comprar barato / vender caro
+│       ├── engine.py         # Motor: 1 operación/ciclo + reconciliación
+│       ├── api_client.py     # Consultas síncronas a la API (arranque)
 │       ├── api_reporter.py   # Envío a la API en background (cola + retry)
 │       └── models.py         # Dataclasses (Position, FilledOrder, ...)
 ├── api/
-│   ├── .env                  # Credenciales MySQL
+│   ├── .env                  # MySQL + credenciales de Binance (balance)
 │   ├── main.py               # Launcher independiente de la API
 │   └── app/
 │       ├── main.py           # App FastAPI (incluye routers)
@@ -322,19 +369,21 @@ crypto-bot/
 │       ├── database.py       # SQLAlchemy + PyMySQL + create DB
 │       ├── models.py         # Entidades transactions y orders
 │       ├── schemas.py        # Schemas Pydantic
+│       ├── binance.py        # Cliente de balance spot (HMAC)
 │       └── routers/
 │           ├── transactions.py
-│           └── orders.py
+│           ├── orders.py
+│           └── balance.py
 └── portal/
     ├── proxy.conf.json       # /api → localhost:8000 en dev
     ├── angular.json
     └── src/
         ├── environments/     # apiUrl por entorno
         └── app/
-            ├── core/         # modelos + servicios HTTP
+            ├── core/         # modelos + servicios HTTP (transactions, balance)
             ├── shared/       # pipes y componentes reutilizables
             └── features/
-                ├── dashboard/       # stats + últimas transacciones
+                ├── dashboard/       # balance spot + stats TEST/REAL + tabla
                 └── transactions/    # listado con filtros + detalle
 ```
 

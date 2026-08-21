@@ -21,8 +21,29 @@ class BinanceBalanceError(RuntimeError):
 
 
 class BinanceAccountClient:
-    def __init__(self) -> None:
-        self._base = settings.binance_rest_url
+    """Cliente de balance para un ambiente concreto.
+
+    - ``test_mode=True``  -> Testnet (claves ``_TEST``)
+    - ``test_mode=False`` -> Producción (claves ``_PROD``)
+    """
+
+    def __init__(self, test_mode: bool = True) -> None:
+        self._test_mode = test_mode
+        if test_mode:
+            self._base = "https://testnet.binance.vision"
+            self._api_key = settings.binance_api_key_test
+            self._secret = settings.binance_secret_key_test
+        else:
+            self._base = "https://api.binance.com"
+            self._api_key = settings.binance_api_key_prod
+            self._secret = settings.binance_secret_key_prod
+
+        if not self._api_key or not self._secret:
+            env_name = "testnet" if test_mode else "producción"
+            raise BinanceBalanceError(
+                f"faltan credenciales de Binance para {env_name} en api/.env"
+            )
+
         self._time_offset = 0
         self._sync_clock()
 
@@ -40,7 +61,7 @@ class BinanceAccountClient:
         }
         query = urllib.parse.urlencode(params)
         signature = hmac.new(
-            settings.binance_secret_key.encode("utf-8"),
+            self._secret.encode("utf-8"),
             query.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
@@ -48,7 +69,7 @@ class BinanceAccountClient:
         try:
             resp = requests.get(
                 url,
-                headers={"X-MBX-APIKEY": settings.binance_api_key},
+                headers={"X-MBX-APIKEY": self._api_key},
                 timeout=10,
             )
         except requests.RequestException as exc:

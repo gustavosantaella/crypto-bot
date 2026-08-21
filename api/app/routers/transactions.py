@@ -8,12 +8,18 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
+from ..events import event_bus
 from ..models import Transaction
 from ..schemas import TransactionClose, TransactionCreate, TransactionOut, TransactionStats
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 Db = Annotated[Session, Depends(get_db)]
+
+
+def _publish(event_type: str, transaction: Transaction) -> None:
+    """Publica un evento SSE con los datos de la transacción."""
+    event_bus.publish(event_type, TransactionOut.model_validate(transaction).model_dump())
 
 
 @router.post("", response_model=TransactionOut, status_code=201)
@@ -23,6 +29,7 @@ def create_transaction(payload: TransactionCreate, db: Db) -> Transaction:
     db.add(transaction)
     db.commit()
     db.refresh(transaction)
+    _publish("transaction.created", transaction)
     return transaction
 
 
@@ -36,6 +43,7 @@ def close_transaction(transaction_id: int, payload: TransactionClose, db: Db) ->
         setattr(transaction, key, value)
     db.commit()
     db.refresh(transaction)
+    _publish("transaction.updated", transaction)
     return transaction
 
 
@@ -56,12 +64,20 @@ def list_transactions(
 
 
 @router.get("/stats", response_model=TransactionStats)
-def get_stats(db: Db) -> TransactionStats:
-    total = db.scalar(select(func.count(Transaction.id))) or 0
-    open_count = db.scalar(select(func.count(Transaction.id)).where(Transaction.status == "OPEN")) or 0
-    closed_count = db.scalar(select(func.count(Transaction.id)).where(Transaction.status == "CLOSED")) or 0
-    test_count = db.scalar(select(func.count(Transaction.id)).where(Transaction.test_mode.is_(True))) or 0
-    real_count = total - test_count
+def get_stats(
+    db: Db,
+    test_mode: Annotated[bool | None, Query(description="true=testnet, false=producción")] = None,
+) -> TransactionStats:
+    """Resumen de transacciones.
+
+    Sin ``test_mode`` devuelve el total y el desglose TEST/REAL. Con
+    ``test_mode`` devuelve las stats SOLO del ambiente indicado (lo que el
+    switch del portal selecciona).
+    """
+
+    def _count_total(*filters) -> int:
+        stmt = select(func.count(Transaction.id)).where(*filters)
+        return int(db.scalar(stmt) or 0)
 
     def _sum_profit(*filters) -> float:
         stmt = (
@@ -73,6 +89,37 @@ def get_stats(db: Db) -> TransactionStats:
     def _count(*filters) -> int:
         stmt = select(func.count(Transaction.id)).where(Transaction.status == "CLOSED", *filters)
         return int(db.scalar(stmt) or 0)
+
+    if test_mode is not None:
+        env_filter = Transaction.test_mode.is_(test_mode)
+        total = _count_total(env_filter)
+        open_count = _count_total(env_filter, Transaction.status == "OPEN")
+        closed_count = _count_total(env_filter, Transaction.status == "CLOSED")
+        total_profit = _sum_profit(env_filter)
+        wins = _count(env_filter, Transaction.profit > 0)
+        losses = _count(env_filter, Transaction.profit < 0)
+        avg_profit = total_profit / closed_count if closed_count else 0.0
+        return TransactionStats(
+            total=total,
+            open=open_count,
+            closed=closed_count,
+            test_mode=total if test_mode else 0,
+            real=0 if test_mode else total,
+            total_profit=total_profit,
+            avg_profit=avg_profit,
+            total_profit_test=total_profit if test_mode else 0.0,
+            total_profit_real=0.0 if test_mode else total_profit,
+            wins_test=wins if test_mode else 0,
+            losses_test=losses if test_mode else 0,
+            wins_real=0 if test_mode else wins,
+            losses_real=0 if test_mode else losses,
+        )
+
+    total = _count_total()
+    open_count = _count_total(Transaction.status == "OPEN")
+    closed_count = _count_total(Transaction.status == "CLOSED")
+    test_count = _count_total(Transaction.test_mode.is_(True))
+    real_count = total - test_count
 
     total_profit = _sum_profit()
     total_profit_test = _sum_profit(Transaction.test_mode.is_(True))
@@ -110,6 +157,7 @@ def cancel_transaction(transaction_id: int, db: Db) -> Transaction:
     transaction.status = "CANCELED"
     db.commit()
     db.refresh(transaction)
+    _publish("transaction.canceled", transaction)
     return transaction
 
 

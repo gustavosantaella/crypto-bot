@@ -1,0 +1,68 @@
+/* Selector de ambiente (Testnet / Producción) */
+.ambient {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.9rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.ambient__label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.ambient__label:first-of-type {
+  color: var(--warn);
+}
+
+.ambient__label:last-of-type {
+  color: var(--danger);
+}
+
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  cursor: pointer;
+  transition: background 0.2s;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.2s, background 0.2s;
+}
+
+/* ON = Producción */
+.switch--on {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+.switch--on .switch__knob {
+  transform: translateX(20px);
+  background: var(--danger);
+}
+
+.ambient__hint {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+}
+

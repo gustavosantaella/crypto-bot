@@ -18,8 +18,12 @@ export class TransactionService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/transactions`;
 
-  getStats(): Observable<TransactionStats> {
-    return this.http.get<TransactionStats>(`${this.baseUrl}/stats`);
+  getStats(testMode?: boolean): Observable<TransactionStats> {
+    let params = new HttpParams();
+    if (testMode != null) {
+      params = params.set('test_mode', String(testMode));
+    }
+    return this.http.get<TransactionStats>(`${this.baseUrl}/stats`, { params });
   }
 
   list(filters: TransactionFilters = {}): Observable<Transaction[]> {

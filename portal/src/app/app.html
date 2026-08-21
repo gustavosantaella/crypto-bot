@@ -12,6 +12,18 @@
         <a routerLink="/transactions" routerLinkActive="active">Transacciones</a>
       </li>
     </ul>
+
+    <div class="ambient">
+      <span class="ambient__label">TESTNET</span>
+      <button type="button" class="switch" [class.switch--on]="!testMode()" (click)="toggleAmbient()"
+              [attr.aria-pressed]="!testMode()"
+              [attr.aria-label]="testMode() ? 'Cambiar a producción' : 'Cambiar a testnet'">
+        <span class="switch__knob"></span>
+      </button>
+      <span class="ambient__label">PROD</span>
+    </div>
+    <p class="ambient__hint">Viendo: {{ testMode() ? 'Testnet' : 'Producción' }}</p>
+
     <p class="sidebar__foot">Bot spot · Binance</p>
   </nav>
 

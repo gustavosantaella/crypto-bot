@@ -1,7 +1,9 @@
 import { Component, inject, signal } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, switchMap } from 'rxjs';
 
+import { EnvironmentService } from '../../core/services/environment.service';
+import { EventService } from '../../core/services/event.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { TransactionRowComponent } from '../../shared/components/transaction-row.component';
 
@@ -14,19 +16,13 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
       <header class="page__header">
         <div>
           <h1>Transacciones</h1>
-          <p class="page__subtitle">Historial completo de ciclos compra → venta.</p>
+          <p class="page__subtitle">
+            Historial de ciclos compra → venta · {{ testMode() ? 'Testnet' : 'Producción' }}
+          </p>
         </div>
       </header>
 
       <section class="filters card">
-        <label class="filter">
-          <span>Modo</span>
-          <select [value]="testMode() ?? ''" (change)="testMode.set(parseBool($event))">
-            <option value="">Todos</option>
-            <option value="true">Test</option>
-            <option value="false">Real</option>
-          </select>
-        </label>
         <label class="filter">
           <span>Estado</span>
           <select [value]="status() ?? ''" (change)="status.set(parseString($event))">
@@ -73,10 +69,20 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
 })
 export class TransactionListComponent {
   private readonly transactionService = inject(TransactionService);
+  private readonly environmentService = inject(EnvironmentService);
+  private readonly eventService = inject(EventService);
 
-  protected readonly testMode = signal<boolean | null>(null);
+  /** Ambiente del switch del sidebar (true=Testnet). */
+  protected readonly testMode = this.environmentService.testMode$;
   protected readonly status = signal<string | null>(null);
   private readonly reloadTrigger = signal(0);
+
+  constructor() {
+    // Recarga la lista en tiempo real cuando el bot compra/vende.
+    this.eventService.changes$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.reload());
+  }
 
   protected readonly transactions = toSignal(
     combineLatest([
@@ -89,12 +95,6 @@ export class TransactionListComponent {
       ),
     ),
   );
-
-  parseBool(event: Event): boolean | null {
-    const value = (event.target as HTMLSelectElement).value;
-    if (value === '') return null;
-    return value === 'true';
-  }
 
   parseString(event: Event): string | null {
     const value = (event.target as HTMLSelectElement).value;

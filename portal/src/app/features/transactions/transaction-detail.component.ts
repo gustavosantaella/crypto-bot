@@ -1,8 +1,9 @@
-import { Component, inject, input } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { Component, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { switchMap } from 'rxjs';
+import { combineLatest, switchMap } from 'rxjs';
 
+import { EventService } from '../../core/services/event.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { DateTimePipe } from '../../shared/pipes/datetime.pipe';
 import { PercentPipe } from '../../shared/pipes/percent.pipe';
@@ -101,14 +102,24 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
 })
 export class TransactionDetailComponent {
   private readonly transactionService = inject(TransactionService);
+  private readonly eventService = inject(EventService);
 
   /** Id de la transacción, inyectado desde la ruta (string). */
   readonly id = input.required<string>();
 
-  /** Reacciona a los cambios del input (evaluación perezosa y reactiva). */
+  private readonly reload = signal(0);
+
+  constructor() {
+    // Recarga el detalle en tiempo real cuando el backend lo actualiza.
+    this.eventService.changes$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.reload.update((n) => n + 1));
+  }
+
+  /** Reacciona a los cambios del input y a los eventos SSE. */
   protected readonly tx = toSignal(
-    toObservable(this.id).pipe(
-      switchMap((id) => this.transactionService.get(Number(id))),
+    combineLatest([toObservable(this.id), toObservable(this.reload)]).pipe(
+      switchMap(([id]) => this.transactionService.get(Number(id))),
     ),
   );
 }

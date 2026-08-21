@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+
+import { EnvironmentService } from './core/services/environment.service';
 
 @Component({
   selector: 'app-root',
@@ -7,5 +9,14 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App {}
+export class App {
+  private readonly environmentService = inject(EnvironmentService);
+
+  /** true = Testnet | false = Producción. */
+  readonly testMode = this.environmentService.testMode$;
+
+  toggleAmbient(): void {
+    this.environmentService.toggle();
+  }
+}
 

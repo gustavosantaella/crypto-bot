@@ -1,10 +1,12 @@
 import { Component, inject, signal } from '@angular/core';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { catchError, combineLatest, of, switchMap } from 'rxjs';
 
 import { AssetBalance, AccountBalance } from '../../core/models/balance.model';
 import { BalanceService } from '../../core/services/balance.service';
+import { EnvironmentService } from '../../core/services/environment.service';
+import { EventService } from '../../core/services/event.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { TransactionRowComponent } from '../../shared/components/transaction-row.component';
 import { NumPipe } from '../../shared/pipes/num.pipe';
@@ -21,16 +23,19 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
           <h1>Panel de control</h1>
           <p class="page__subtitle">Resumen del bot: compra barato, vende caro.</p>
         </div>
-        <button class="btn" (click)="refresh()">Refrescar</button>
+        <div class="header__actions">
+          <span class="sse-badge" [class.sse-badge--on]="sseConnected() === true"
+                                  [class.sse-badge--off]="sseConnected() === false">
+            {{ sseConnected() === true ? '● En vivo' : (sseConnected() === false ? '● Reconectando' : '● Conectando') }}
+          </span>
+          <button class="btn" (click)="refresh()">Refrescar</button>
+        </div>
       </header>
 
       <!-- Cuenta spot -->
       <section class="card section">
         <header class="card__header">
-          <h2>Cuenta spot</h2>
-          <span class="badge" [class.badge--test]="balance()?.test_mode" [class.badge--real]="!balance()?.test_mode">
-            {{ balance()?.test_mode ? 'TESTNET' : 'PRODUCCIÓN' }}
-          </span>
+          <h2>Cuenta spot — {{ testMode() ? 'Testnet' : 'Producción' }}</h2>
         </header>
         @if (balance(); as b) {
           <div class="balance-grid">
@@ -51,41 +56,11 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
               </div>
             }
           </div>
+        } @else if (balanceError(); as err) {
+          <p class="empty">⚠️ No se pudo consultar el balance de este ambiente:<br />{{ err }}</p>
         } @else {
-          <p class="empty">Balance no disponible (¿la API y las keys de Binance están bien?).</p>
+          <p class="empty">Cargando balance…</p>
         }
-      </section>
-
-      <!-- Resultado por ambiente (TEST / REAL) -->
-      <section class="result-grid">
-        <div class="card result-card">
-          <header class="result-card__header">
-            <span class="badge badge--test">TESTNET</span>
-            <span class="result-card__count">{{ stats()?.test_mode ?? 0 }} ciclos</span>
-          </header>
-          <p class="result-card__profit"
-             [class.text--ok]="(stats()?.total_profit_test ?? 0) >= 0"
-             [class.text--loss]="(stats()?.total_profit_test ?? 0) < 0">
-            {{ stats()?.total_profit_test ?? 0 | usdt }}
-          </p>
-          <p class="result-card__detail">
-            {{ stats()?.wins_test ?? 0 }} ganadas · {{ stats()?.losses_test ?? 0 }} perdidas
-          </p>
-        </div>
-        <div class="card result-card">
-          <header class="result-card__header">
-            <span class="badge badge--real">REAL</span>
-            <span class="result-card__count">{{ stats()?.real ?? 0 }} ciclos</span>
-          </header>
-          <p class="result-card__profit"
-             [class.text--ok]="(stats()?.total_profit_real ?? 0) >= 0"
-             [class.text--loss]="(stats()?.total_profit_real ?? 0) < 0">
-            {{ stats()?.total_profit_real ?? 0 | usdt }}
-          </p>
-          <p class="result-card__detail">
-            {{ stats()?.wins_real ?? 0 }} ganadas · {{ stats()?.losses_real ?? 0 }} perdidas
-          </p>
-        </div>
       </section>
 
       <!-- Stats generales -->
@@ -114,9 +89,10 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
           <span class="stat-card__value">{{ stats()?.avg_profit ?? 0 | usdt }}</span>
         </div>
         <div class="stat-card">
-          <span class="stat-card__label">Test / Real</span>
+          <span class="stat-card__label">Ganadas / Perdidas</span>
           <span class="stat-card__value">
-            {{ stats()?.test_mode ?? 0 }} / {{ stats()?.real ?? 0 }}
+            {{ testMode() ? (stats()?.wins_test ?? 0) : (stats()?.wins_real ?? 0) }} /
+            {{ testMode() ? (stats()?.losses_test ?? 0) : (stats()?.losses_real ?? 0) }}
           </span>
         </div>
       </section>
@@ -153,6 +129,10 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
   styles: [`
     .page__header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem; }
     .page__subtitle { color: var(--muted); margin: 0.25rem 0 0; }
+    .header__actions { display: flex; align-items: center; gap: 0.75rem; }
+    .sse-badge { font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+    .sse-badge--on { color: var(--ok); }
+    .sse-badge--off { color: var(--warn); }
     .section { margin-bottom: 1.5rem; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
     .balance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; padding: 1.2rem; }
@@ -185,23 +165,50 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
 export class DashboardComponent {
   private readonly transactionService = inject(TransactionService);
   private readonly balanceService = inject(BalanceService);
+  private readonly environmentService = inject(EnvironmentService);
+  private readonly eventService = inject(EventService);
   private readonly reloadTrigger = signal(0);
 
+  /** Ambiente seleccionado en el switch del sidebar (true=Testnet). */
+  protected readonly testMode = this.environmentService.testMode$;
+
+  /** Estado de la conexión SSE (null mientras conecta, true/false después). */
+  protected readonly sseConnected = toSignal(this.eventService.connection$);
+
+  constructor() {
+    // Actualiza en tiempo real cuando el backend registra una operación.
+    this.eventService.changes$
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => this.refresh());
+  }
+
   protected readonly stats = toSignal(
-    combineLatest([toObservable(this.reloadTrigger)]).pipe(
-      switchMap(() => this.transactionService.getStats()),
+    combineLatest([toObservable(this.testMode), toObservable(this.reloadTrigger)]).pipe(
+      switchMap(([testMode]) => this.transactionService.getStats(testMode)),
     ),
   );
   protected readonly transactions = toSignal(
-    combineLatest([toObservable(this.reloadTrigger)]).pipe(
-      switchMap(() => this.transactionService.list({ limit: 10 })),
+    combineLatest([toObservable(this.testMode), toObservable(this.reloadTrigger)]).pipe(
+      switchMap(([testMode]) => this.transactionService.list({ testMode, limit: 10 })),
     ),
   );
   protected readonly balance = toSignal(
-    combineLatest([toObservable(this.reloadTrigger)]).pipe(
-      switchMap(() => this.balanceService.get().pipe(catchError(() => of(null)))),
+    combineLatest([toObservable(this.testMode), toObservable(this.reloadTrigger)]).pipe(
+      switchMap(([testMode]) => {
+        this.balanceError.set(null);
+        return this.balanceService.get(testMode).pipe(
+          catchError((err) => {
+            const detail = err?.error?.detail ?? err?.message ?? 'error desconocido';
+            this.balanceError.set(detail);
+            return of(null);
+          }),
+        );
+      }),
     ),
   );
+
+  /** Mensaje de error al consultar el balance (si falla). */
+  protected readonly balanceError = signal<string | null>(null);
 
   /** Activos principales del par (p. ej. BTC y USDT) + 2 extras con saldo. */
   mainAssets(balance: AccountBalance): AssetBalance[] {

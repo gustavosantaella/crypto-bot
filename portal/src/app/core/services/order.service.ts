@@ -10,10 +10,11 @@ export class OrderService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/orders`;
 
-  list(symbol?: string, side?: string, limit = 100): Observable<Order[]> {
+  list(symbol?: string, side?: string, testMode?: boolean, limit = 100): Observable<Order[]> {
     let params = new HttpParams().set('limit', String(limit));
     if (symbol) params = params.set('symbol', symbol);
     if (side) params = params.set('side', side);
+    if (testMode != null) params = params.set('test_mode', String(testMode));
     return this.http.get<Order[]>(this.baseUrl, { params });
   }
 }

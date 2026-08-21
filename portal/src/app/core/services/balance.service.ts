@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 
@@ -10,7 +10,9 @@ export class BalanceService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = `${environment.apiUrl}/balance`;
 
-  get(): Observable<AccountBalance> {
-    return this.http.get<AccountBalance>(this.baseUrl);
+  /** Balance spot del ambiente indicado (true=testnet, false=producción). */
+  get(testMode: boolean): Observable<AccountBalance> {
+    const params = new HttpParams().set('test_mode', String(testMode));
+    return this.http.get<AccountBalance>(this.baseUrl, { params });
   }
 }
