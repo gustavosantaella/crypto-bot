@@ -125,7 +125,7 @@ class Config:
             sma_period=_get_int("SMA_PERIOD", 20),
             buy_threshold_pct=_get_float("BUY_THRESHOLD_PCT", 0.8),
             sell_profit_pct=_get_float("SELL_PROFIT_PCT", 1.0),
-            check_interval_ms=_get_int("CHECK_INTERVAL_MS", 500),
+            check_interval_ms=_get_int("CHECK_INTERVAL_MS", 100),
             max_reconnect_delay=_get_float("MAX_RECONNECT_DELAY", 30.0),
             request_timeout=_get_float("REQUEST_TIMEOUT", 5.0),
         )
