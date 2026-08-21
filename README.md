@@ -319,6 +319,19 @@ event: transaction.canceled    ← se canceló una OPEN huérfana
 Incluye un *heartbeat* cada 15 s para mantener la conexión viva, y el
 `EventSource` del navegador se reconecta automáticamente si se cae.
 
+### Precio en vivo (SSE)
+
+La API también se conecta a los **WebSockets de precios de Binance** (testnet
+y producción, ambos públicos) al arrancar, y publica el precio cada ~2 s:
+
+```
+event: price
+data: {"test_mode": true, "symbol": "BTCUSDT", "price": 77397.42, "time": ...}
+```
+
+El **sidebar del portal** muestra el precio en vivo del ambiente seleccionado
+en el switch (TESTNET o PRODUCCIÓN).
+
 ---
 
 ## Validación
