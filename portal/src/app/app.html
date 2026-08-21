@@ -1,0 +1,21 @@
+<div class="layout">
+  <nav class="sidebar">
+    <div class="brand">
+      <span class="brand__logo">◈</span>
+      <span class="brand__name">Crypto Bot</span>
+    </div>
+    <ul class="nav">
+      <li>
+        <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
+      </li>
+      <li>
+        <a routerLink="/transactions" routerLinkActive="active">Transacciones</a>
+      </li>
+    </ul>
+    <p class="sidebar__foot">Bot spot · Binance</p>
+  </nav>
+
+  <main class="content">
+    <router-outlet />
+  </main>
+</div>

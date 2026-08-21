@@ -1,0 +1,13 @@
+.venv
+*.txt
+.env
+__pycache__/
+
+# Node / Angular
+node_modules/
+dist/
+
+# Logs
+*.log
+logs/
+
