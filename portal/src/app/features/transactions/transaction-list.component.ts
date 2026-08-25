@@ -17,12 +17,20 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
         <div>
           <h1>Transacciones</h1>
           <p class="page__subtitle">
-            Historial de ciclos compra → venta · {{ testMode() ? 'Testnet' : 'Producción' }}
+            Historial de ciclos · {{ marketType() === 'FUTURES' ? 'Futuros' : 'Spot' }} ·
+            {{ testMode() ? 'Testnet' : 'Producción' }}
           </p>
         </div>
       </header>
 
       <section class="filters card">
+        <label class="filter">
+          <span>Mercado</span>
+          <select [value]="marketType()" (change)="setMarket($event)">
+            <option value="SPOT">SPOT</option>
+            <option value="FUTURES">FUTURES</option>
+          </select>
+        </label>
         <label class="filter">
           <span>Estado</span>
           <select [value]="status() ?? ''" (change)="status.set(parseString($event))">
@@ -39,7 +47,7 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
         <table class="table">
           <thead>
             <tr>
-              <th>ID</th><th>Par</th><th>Estado</th><th>Modo</th>
+              <th>ID</th><th>Par</th><th>Mercado</th><th>Lado</th><th>Estado</th><th>Modo</th>
               <th class="th--num">Compra</th><th>Fecha compra</th>
               <th class="th--num">Venta</th><th>Fecha venta</th>
               <th class="th--num">Ganancia</th><th class="th--num">%</th>
@@ -49,7 +57,7 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
             @for (tx of transactions(); track tx.id) {
               <tr><app-transaction-row [tx]="tx" /></tr>
             } @empty {
-              <tr><td colspan="10" class="empty">Sin resultados con los filtros actuales.</td></tr>
+              <tr><td colspan="12" class="empty">Sin resultados con los filtros actuales.</td></tr>
             }
           </tbody>
         </table>
@@ -59,7 +67,7 @@ import { TransactionRowComponent } from '../../shared/components/transaction-row
   styles: [`
     .page__header { margin-bottom: 1.5rem; }
     .page__subtitle { color: var(--muted); margin: 0.25rem 0 0; }
-    .filters { display: flex; align-items: flex-end; gap: 1rem; padding: 1rem 1.2rem; margin-bottom: 1.5rem; }
+    .filters { display: flex; align-items: flex-end; gap: 1rem; padding: 1rem 1.2rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .filter { display: flex; flex-direction: column; gap: 0.35rem; }
     .filter span { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
     select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.7rem; font-size: 0.9rem; }
@@ -74,6 +82,10 @@ export class TransactionListComponent {
 
   /** Ambiente del switch del sidebar (true=Testnet). */
   protected readonly testMode = this.environmentService.testMode$;
+
+  /** Mercado seleccionado (SPOT | FUTURES). */
+  protected readonly marketType = this.environmentService.marketType$;
+
   protected readonly status = signal<string | null>(null);
   private readonly reloadTrigger = signal(0);
 
@@ -87,11 +99,12 @@ export class TransactionListComponent {
   protected readonly transactions = toSignal(
     combineLatest([
       toObservable(this.testMode),
+      toObservable(this.marketType),
       toObservable(this.status),
       toObservable(this.reloadTrigger),
     ]).pipe(
-      switchMap(([testMode, status]) =>
-        this.transactionService.list({ testMode, status, limit: 200 }),
+      switchMap(([testMode, marketType, status]) =>
+        this.transactionService.list({ testMode, marketType, status, limit: 200 }),
       ),
     ),
   );
@@ -99,6 +112,11 @@ export class TransactionListComponent {
   parseString(event: Event): string | null {
     const value = (event.target as HTMLSelectElement).value;
     return value === '' ? null : value;
+  }
+
+  setMarket(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as 'SPOT' | 'FUTURES';
+    this.environmentService.setMarketType(value);
   }
 
   reload(): void {

@@ -18,11 +18,19 @@ export class App {
   /** true = Testnet | false = Producción. */
   readonly testMode = this.environmentService.testMode$;
 
+  /** 'SPOT' | 'FUTURES'. */
+  readonly marketType = this.environmentService.marketType$;
+
   /** Precio en vivo del ambiente seleccionado (vía SSE). */
   readonly price = computed(() => this.priceService.priceFor(this.testMode()));
 
   toggleAmbient(): void {
     this.environmentService.toggle();
   }
+
+  toggleMarketType(): void {
+    this.environmentService.toggleMarketType();
+  }
 }
+
 

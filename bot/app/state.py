@@ -13,7 +13,7 @@ from .models import Position
 
 
 class TradingState:
-    def __init__(self, max_sma_window: int = 20) -> None:
+    def __init__(self, max_sma_window: int = 20, candle_buffer=None) -> None:
         self._lock = threading.RLock()
         self._latest_price: float | None = None
         self._latest_trade_id: int | None = None
@@ -23,6 +23,10 @@ class TradingState:
         self.total_closed_trades: int = 0
         self.total_profit: float = 0.0
         self.started_at: datetime = datetime.now()
+        # Buffer de velas para la estrategia de futuros (indicadores en vivo).
+        self.candle_buffer = candle_buffer
+        # Último análisis de mercado (se expone para logs / API).
+        self.last_analysis: dict | None = None
 
     # ------------------------------------------------------------------
     # Precio / ticks
@@ -46,11 +50,15 @@ class TradingState:
             return
 
         trade_id = trade.get("t")
+        event_time = trade.get("T") or trade.get("E")
         with self._lock:
             if trade_id is not None and trade_id == self._latest_trade_id:
                 return
             self._latest_trade_id = trade_id
             self._latest_price = price
+            # Si la estrategia de futuros está activa, alimenta las velas en vivo.
+            if self.candle_buffer is not None and event_time:
+                self.candle_buffer.update_trade(price, int(event_time))
 
     def sample(self) -> None:
         """Toma una muestra temporal del precio para la ventana de la SMA.

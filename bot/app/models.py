@@ -38,22 +38,63 @@ class FilledOrder:
 
 @dataclass
 class Position:
-    """Posición abierta: una compra que aún no se ha vendido."""
+    """Posición abierta: una operación que aún no se ha cerrado.
+
+    En spot representa una compra pendiente de vender; en futuros una posición
+    LONG o SHORT abierta (con apalancamiento, margen y precio de liquidación).
+    """
 
     symbol: str
     buy_order_id: int
-    buy_price: float
-    buy_quantity: float
-    buy_quote: float
+    buy_price: float          # precio de entrada (compra o apertura)
+    buy_quantity: float       # cantidad (spot) o nº de contratos (futuros)
+    buy_quote: float          # nocional total = cantidad * precio
     buy_time: int
     test_mode: bool = True
+    # --- Identificación del mercado ---
+    market_type: str = "SPOT"        # "SPOT" | "FUTURES"
+    side: str = "LONG"               # "LONG" | "SHORT"
+    leverage: int = 1
+    # --- Futuros ---
+    margin: float | None = None          # colateral invertido (quote / leverage)
+    liquidation_price: float | None = None
+    take_profit_price: float | None = None
+    stop_loss_price: float | None = None
     # id devuelto por la API del proyecto al crear la transacción (ciclo).
     transaction_id: int | None = None
+
+    @property
+    def notional(self) -> float:
+        return self.buy_quote
 
 
 @dataclass
 class TradeDecision:
-    """Decisión tomada por la estrategia."""
+    """Decisión tomada por la estrategia.
 
-    action: str  # "BUY" | "SELL"
+    ``action`` puede ser: BUY, SELL (spot) o LONG_OPEN, SHORT_OPEN,
+    LONG_CLOSE, SHORT_CLOSE (futuros).
+    """
+
+    action: str
     price: float
+    side: str = "LONG"
+    score: float | None = None
+    reason: str = ""
+
+
+@dataclass
+class MarketAnalysis:
+    """Snapshot del análisis de mercado (se guarda para diagnóstico)."""
+
+    price: float
+    score: float
+    recommendation: str          # LONG | SHORT | NEUTRAL
+    trend: str                   # bullish | bearish | neutral
+    indicators: dict
+    funding_rate: float | None = None
+    mark_price: float | None = None
+    index_price: float | None = None
+    change_24h_pct: float | None = None
+    created_ms: int = 0
+

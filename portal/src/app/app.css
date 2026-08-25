@@ -1,3 +1,36 @@
+/* Selector de mercado (Spot / Futuros) */
+.market-switch {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.market-btn {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.market-btn:hover {
+  color: var(--text);
+}
+
+.market-btn--active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 /* Selector de ambiente (Testnet / Producción) */
 .ambient {
   display: flex;

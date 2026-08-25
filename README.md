@@ -1,18 +1,23 @@
-# Crypto Bot — Compra barato, vende caro (Binance Spot)
+# Crypto Bot — Spot y Futuros USDT-M (Binance)
 
-Sistema completo de trading automatizado en **spot** con Binance:
+Sistema completo de trading automatizado con Binance **spot** y **futuros
+USDT-M con apalancamiento**:
 
 | Carpeta   | Descripción                                                          |
 |-----------|----------------------------------------------------------------------|
-| `bot/`    | Bot en **Python** que lee el precio por WebSocket y compra/vende.     |
-| `api/`    | **API (FastAPI)** que registra las transacciones en **MySQL**.       |
-| `portal/` | **Portal web (Angular)** para visualizar las transacciones.          |
+| `bot/`    | Bot en **Python** que lee el precio por WebSocket y opera spot/futuros. |
+| `api/`    | **API (FastAPI)** que registra transacciones y órdenes en **MySQL** y calcula la señal de mercado. |
+| `portal/` | **Portal web (Angular)** con dashboard, señal LONG/SHORT y transacciones. |
 
-El bot ejecuta **una sola operación por ciclo**: si ya compró, no vuelve a
-comprar hasta que venda la posición. La venta **solo se dispara por encima
-del precio de compra** (ganancia positiva garantizada por estrategia), y toda
-la información se reporta a la API en **segundo plano (hilos)** para no
-ralentizar el trading.
+Modos de trading (`TRADE_MODE` en el `.env`):
+
+- **`spot`**    — Estrategia clásica *compra barato / vende caro* (SMA).
+- **`futures`** — Estrategia de señal con apalancamiento: abre **LONG** o
+  **SHORT** según el score de indicadores (EMA, RSI, MACD, Bollinger) y cierra
+  con take-profit, stop-loss o cuando la señal se gira en contra.
+
+El bot ejecuta **una sola operación por ciclo**. Toda la información se reporta
+a la API en **segundo plano (hilos)** para no ralentizar el trading.
 
 ---
 
@@ -94,42 +99,68 @@ npm install
 ### 1. `bot/.env`
 
 ```env
-BINANCE_API_KEY=tu_api_key
-BINANCE_SECRET_KEY=tu_secret_key
-TEST_MODE=1
+TEST_MODE=1                 # 1 = Testnet (virtual), 0 = Producción (real)
+TRADE_MODE=spot             # "spot" | "futures"
 CURRENCY_TO_USE=BTC
 API_URL=http://localhost:8000
 BINANCE_WEBSOCKET_URL=wss://stream.binance.com/stream?streams=btcusdt@trade
 
-# --- Parámetros de trading ---
-QUOTE_AMOUNT=10          # USDT invertidos en cada compra (>= minNotional)
-SMA_PERIOD=20            # Nº de muestras de la ventana de la media móvil
-SMA_SAMPLE_MS=500        # Cada cuántos ms se muestrea el precio para la SMA
-                         # (500ms => la SMA cubre los últimos 10 s)
-BUY_THRESHOLD_PCT=0.05   # Comprar si precio <= SMA * (1 - 0.05%)
-SELL_PROFIT_PCT=0.05     # Vender si precio >= compra * (1 + 0.05%)
-CHECK_INTERVAL_MS=500    # Cada cuánto se evalúa la estrategia
-MAX_RECONNECT_DELAY=30   # Backoff máximo (s) del WebSocket
-REQUEST_TIMEOUT=5        # Timeout de peticiones REST
+# --- Parámetros de trading (spot: compra barato / vende caro) ---
+QUOTE_AMOUNT=10             # USDT por operación (en futuros: MARGEN)
+SMA_PERIOD=20               # Nº de muestras de la ventana de la media móvil
+SMA_SAMPLE_MS=400           # Cada cuántos ms se muestrea el precio para la SMA
+BUY_THRESHOLD_PCT=0.05      # Comprar si precio <= SMA * (1 - 0.05%)
+SELL_PROFIT_PCT=0.05        # Vender si precio >= compra * (1 + 0.05%)
+CHECK_INTERVAL_MS=100       # Cada cuánto se evalúa la estrategia
+MAX_RECONNECT_DELAY=30      # Backoff máximo (s) del WebSocket
+REQUEST_TIMEOUT=5           # Timeout de peticiones REST
+```
+
+### Parámetros de futuros (`TRADE_MODE=futures`)
+
+```env
+LEVERAGE=3                  # Apalancamiento (nocional = margen * leverage)
+MARGIN_TYPE=ISOLATED        # ISOLATED | CROSSED
+FUTURES_TAKE_PROFIT_PCT=0.8 # Cerrar con +0.8% de beneficio (sobre la entrada)
+FUTURES_STOP_LOSS_PCT=0.4   # Cerrar con -0.4% de pérdida (stop-loss duro)
+SIGNAL_OPEN_SCORE=1.5       # Abrir LONG/SHORT si |score| >= este valor
+SIGNAL_CLOSE_SCORE=0.5      # Cerrar si la señal se gira (|score| <= valor)
+KLINE_INTERVAL=1m           # Velas para los indicadores
+KLINE_LIMIT=300             # Nº de velas históricas
+ANALYSIS_REFRESH_MS=15000   # Refresco del análisis por REST
+
+# --- Indicadores (RSI / MACD / EMA) ---
+RSI_PERIOD=14
+RSI_OVERSOLD=30
+RSI_OVERBOUGHT=70
+EMA_FAST=12
+EMA_SLOW=26
+EMA_SIGNAL=9
+EMA_TREND_FAST=50
+EMA_TREND_SLOW=200
 ```
 
 #### Modo pruebas vs. producción
 
 `TEST_MODE=1` **activa automáticamente la Testnet de Binance** (endpoints y
-sockets de prueba):
+sockets de prueba) y `TRADE_MODE` elige entre spot y futuros:
 
-| Recurso    | TEST_MODE=1 (testnet)            | TEST_MODE=0 (real)          |
-|------------|----------------------------------|-----------------------------|
-| REST       | `https://testnet.binance.vision` | `https://api.binance.com`   |
-| WebSocket  | `wss://stream.testnet.binance.vision/stream` | `wss://stream.binance.com/stream` |
+| Recurso   | Mercado  | TEST_MODE=1 (testnet)                        | TEST_MODE=0 (real)            |
+|-----------|----------|----------------------------------------------|-------------------------------|
+| REST      | spot     | `https://testnet.binance.vision`             | `https://api.binance.com`     |
+| REST      | futuros  | `https://testnet.binancefuture.com`          | `https://fapi.binance.com`    |
+| WebSocket | spot     | `wss://stream.testnet.binance.vision/stream` | `wss://stream.binance.com/stream` |
+| WebSocket | futuros  | `wss://stream.testnet.binancefuture.com/stream` | `wss://fstream.binance.com/stream` |
 
 La URL del `.env` define **qué streams escuchar** (`streams=btcusdt@trade`);
-el bot conserva ese stream y solo cambia el host según el modo.
+el bot conserva ese stream y solo cambia el host según el modo y entorno.
 
-> ⚠️ **Las API keys de la Testnet se generan gratis en
-> https://testnet.binance.vision/** (los fondos son virtuales). Las keys de
-> producción **no** funcionan contra la testnet (error `-2015`). Para operar
-> en real, pon las keys de tu cuenta de Binance y `TEST_MODE=0`.
+> ⚠️ **Las API keys de la Testnet de SPOT se generan gratis en
+> https://testnet.binance.vision/** y las de **FUTUROS en
+> https://testnet.binancefuture.com/** (son distintas). Si defines
+> `BINANCE_API_KEY_FUTURES`/`BINANCE_SECRET_KEY_FUTURES`, el bot las usará en
+> modo futuros; si no, hará fallback a las de spot (y Binance las rechazará en
+> la testnet de futuros con error de autenticación).
 
 ### 2. `api/.env`
 
@@ -139,17 +170,35 @@ DB_USER=root
 DB_PASS=root
 DB_NAME=cryptobot
 
-# Credenciales de Binance (copiadas de bot/.env): se usan para consultar el
-# balance de la cuenta spot desde la API (GET /api/balance).
 TEST_MODE=1
+TRADE_MODE=spot             # "spot" | "futures" (mercado por defecto en la API)
+LEVERAGE=3                  # Apalancamiento (se muestra en el portal)
 CURRENCY_TO_USE=BTC
-BINANCE_API_KEY=tu_api_key
-BINANCE_SECRET_KEY=tu_secret_key
+
+# Credenciales de SPOT (testnet y producción)
+BINANCE_API_KEY_TEST=...
+BINANCE_SECRET_KEY_TEST=...
+BINANCE_API_KEY_PROD=...
+BINANCE_SECRET_KEY_PROD=...
+
+# Credenciales de FUTUROS (opcionales; fallback a las de spot)
+BINANCE_API_KEY_TEST_FUTURES=...
+BINANCE_SECRET_KEY_TEST_FUTURES=...
+BINANCE_API_KEY_PROD_FUTURES=...
+BINANCE_SECRET_KEY_PROD_FUTURES=...
+
+# Análisis de mercado (señal LONG/SHORT/NEUTRAL)
+KLINE_INTERVAL=1m
+KLINE_LIMIT=300
+ANALYSIS_REFRESH_MS=15000
 ```
 
 La API crea automáticamente la base de datos y las tablas al arrancar
-(`transactions` y `orders`). `TEST_MODE` debe coincidir con el del bot: la
-API consulta el balance en la **testnet** o en **producción** según ese valor.
+(`transactions` y `orders`). Si ya existían, se ejecutan **migraciones ligeras**
+que añaden los campos de futuros (`market_type`, `side`, `leverage`, margen,
+liquidación, TP/SL...) sin tocar las filas antiguas de spot. El balance se
+consulta en la **testnet** o en **producción** según `test_mode` y en spot o
+futuros según `market_type` (parámetro de `GET /api/balance`).
 
 ---
 
@@ -173,7 +222,7 @@ cd bot
 ..\.venv\Scripts\python main.py
 ```
 
-El bot:
+El bot (modo **spot**):
 1. Se conecta al WebSocket de Binance (testnet o real según `TEST_MODE`).
 2. Llena la ventana de la media móvil (SMA) con los primeros ticks.
 3. Cuando el precio cae por debajo de `SMA * (1 - BUY_THRESHOLD_PCT%)`,
@@ -181,6 +230,18 @@ El bot:
 4. Cuando el precio sube hasta `compra * (1 + SELL_PROFIT_PCT%)`, **vende**
    toda la posición.
 5. Cada compra/venta se registra en la API en segundo plano.
+
+En modo **futuros** (`TRADE_MODE=futures`) el bot:
+1. Aplica el apalancamiento y el tipo de margen configurados (`LEVERAGE`,
+   `MARGIN_TYPE`) al símbolo.
+2. Siembra velas históricas (klines) y las actualiza en tiempo real con el
+   stream de trades.
+3. Calcula el score de indicadores (EMA 50/200, RSI, MACD, Bollinger) cada
+   ciclo y abre **LONG** si `score >= SIGNAL_OPEN_SCORE` o **SHORT** si
+   `score <= -SIGNAL_OPEN_SCORE`.
+4. Cierra la posición con take-profit, stop-loss o cuando la señal se gira.
+5. Al arrancar, recupera la posición abierta real desde `positionRisk` de
+   Binance (si el bot se reinició con una operación abierta).
 
 Detén el bot con `Ctrl+C` (apaga el stream y espera a que la cola de
 reportes se vacíe).
@@ -197,18 +258,41 @@ Abre **http://localhost:4200**. En desarrollo, `/api` se proxya hacia
 
 ---
 
-## Estrategia de trading
+## Estrategias de trading
 
-**Comprar barato, vender caro** usando la media móvil simple (SMA) como
-precio de referencia:
+### Spot — comprar barato, vender caro (SMA)
 
 1. Se mantiene una ventana deslizante con los últimos `SMA_PERIOD` precios.
 2. **COMPRA** cuando `precio_actual <= SMA * (1 - BUY_THRESHOLD_PCT/100)`.
    El precio cayó por debajo del promedio reciente → se considera barato.
 3. **VENTA** cuando `precio_actual >= precio_compra * (1 + SELL_PROFIT_PCT/100)`.
-   Solo se vende **por encima** del precio de compra → ganancia garantizada
-   por la condición (la ganancia real se calcula con los precios de
-   ejecución reales de Binance).
+   Solo se vende **por encima** del precio de compra.
+
+### Futuros — señal LONG/SHORT (score de indicadores)
+
+El bot calcula un **score compuesto** (rango ≈ -6..+6) a partir de velas:
+
+| Indicador         | Contribución al score                                   |
+|-------------------|---------------------------------------------------------|
+| Precio vs EMA50   | +1 por encima / -1 por debajo                           |
+| EMA50 vs EMA200   | +1 estructura alcista / -1 bajista                      |
+| RSI(14)           | +1 sobrevendido (<30), -1 sobrecomprado (>70), escala continua |
+| MACD histograma   | +1 alcista / -1 bajista                                 |
+| Cruce MACD        | +0.5 cruce alcista / -0.5 bajista                       |
+| Bollinger         | +0.5 bajo banda inferior / -0.5 sobre banda superior    |
+
+- **Abrir LONG** cuando `score >= SIGNAL_OPEN_SCORE`.
+- **Abrir SHORT** cuando `score <= -SIGNAL_OPEN_SCORE`.
+- **Cerrar** por take-profit (`FUTURES_TAKE_PROFIT_PCT`), stop-loss
+  (`FUTURES_STOP_LOSS_PCT`) o cuando el score se gira en contra.
+
+La **señal de mercado** también se expone vía `GET /api/analysis/signal`
+(con recomendación LONG/SHORT/NEUTRAL, RSI, MACD, funding rate...) y se
+publica en vivo por SSE (`market.analysis`) para el portal.
+
+> ⚠️ Los indicadores ayudan a decidir, pero **ninguna estrategia garantiza
+> rentabilidad**. En futuros el apalancamiento amplifica tanto ganancias como
+> pérdidas: usa stop-loss y prueba siempre primero en la Testnet.
 
 ## Robusteza / concurrencia
 
@@ -300,8 +384,9 @@ Tabla auxiliar **`orders`**: auditoría de cada orden enviada a Binance
 | GET    | `/api/transactions/stats`         | Resumen + ganancia/pérdida por ambiente (TEST/REAL) |
 | POST   | `/api/orders`                     | Registrar una orden (auditoría)                |
 | GET    | `/api/orders`                     | Listar órdenes                                 |
-| GET    | `/api/balance`                    | Balance de la cuenta spot de Binance           |
-| GET    | `/api/events`                     | **SSE**: eventos en tiempo real (compra/venta) |
+| GET    | `/api/balance`                    | Balance (y posiciones de futuros) de Binance   |
+| GET    | `/api/analysis/signal`            | Señal de mercado LONG/SHORT/NEUTRAL            |
+| GET    | `/api/events`                     | **SSE**: eventos en tiempo real (compra/venta, precio, señal) |
 
 ### Actualizaciones en tiempo real (SSE)
 
@@ -311,9 +396,10 @@ actualiza el dashboard, la lista y el detalle **sin recargar la página**:
 
 ```
 GET /api/events
-event: transaction.created     ← el bot compró
-event: transaction.updated     ← el bot vendió (se cerró el ciclo)
+event: transaction.created     ← el bot abrió posición (compra)
+event: transaction.updated     ← el bot cerró posición (venta)
 event: transaction.canceled    ← se canceló una OPEN huérfana
+event: market.analysis         ← señal de mercado recalculada
 ```
 
 Incluye un *heartbeat* cada 15 s para mantener la conexión viva, y el
@@ -331,6 +417,21 @@ data: {"test_mode": true, "symbol": "BTCUSDT", "price": 77397.42, "time": ...}
 
 El **sidebar del portal** muestra el precio en vivo del ambiente seleccionado
 en el switch (TESTNET o PRODUCCIÓN).
+
+### Señal de mercado (SSE)
+
+Un hilo interno recalcula la señal (klines → indicadores → score) cada
+`ANALYSIS_REFRESH_MS` ms para spot y futuros, y publica `market.analysis`:
+
+```
+event: market.analysis
+data: {"market_type": "FUTURES", "recommendation": "SHORT", "score": -2.8,
+       "indicators": {"rsi14": 31.2, "macd_hist": -0.4, "ema50": 79000, ...},
+       "funding_rate": 0.0001, "summary": "..."}
+```
+
+El dashboard muestra la recomendación, el score, el RSI, el MACD y la
+tendencia en vivo.
 
 ---
 
@@ -360,44 +461,53 @@ crypto-bot/
 ├── .venv/                    # Entorno virtual único
 ├── README.md
 ├── bot/
-│   ├── .env                  # Credenciales y parámetros
+│   ├── .env                  # Credenciales y parámetros (TRADE_MODE, LEVERAGE...)
 │   ├── main.py               # Punto de entrada
-│   ├── config.py             # Carga .env y deriva URLs testnet/real
-│   ├── demo_trade.py         # Demo: compra+venta real en testnet
+│   ├── config.py             # Carga .env y deriva URLs spot/futuros testnet/real
+│   ├── demo_trade.py         # Demo: apertura+cierre real en testnet
 │   └── app/
-│       ├── binance_client.py # REST Binance (HMAC-SHA256) + balance
+│       ├── binance_client.py # REST Binance (HMAC) spot /api/v3 + futuros /fapi/v1
 │       ├── price_stream.py   # WebSocket con reconexión + backoff
-│       ├── state.py          # Estado thread-safe (precio, posición, dedup)
-│       ├── strategy.py       # SMA temporal: comprar barato / vender caro
+│       ├── state.py          # Estado thread-safe (precio, posición, velas, dedup)
+│       ├── strategy.py       # SMAStrategy (spot) + FuturesStrategy (LONG/SHORT)
+│       ├── indicators.py     # RSI, MACD, EMA, Bollinger, ATR, score compuesto
+│       ├── candle_buffer.py  # Velas OHLC desde klines + stream de trades
 │       ├── engine.py         # Motor: 1 operación/ciclo + reconciliación
 │       ├── api_client.py     # Consultas síncronas a la API (arranque)
 │       ├── api_reporter.py   # Envío a la API en background (cola + retry)
-│       └── models.py         # Dataclasses (Position, FilledOrder, ...)
+│       └── models.py         # Dataclasses (Position, FilledOrder, MarketAnalysis...)
 ├── api/
-│   ├── .env                  # MySQL + credenciales de Binance (balance)
+│   ├── .env                  # MySQL + credenciales de Binance (spot y futuros)
 │   ├── main.py               # Launcher independiente de la API
 │   └── app/
-│       ├── main.py           # App FastAPI (incluye routers)
+│       ├── main.py           # App FastAPI (incluye routers + emitter de señal)
 │       ├── config.py         # Settings desde api/.env
 │       ├── database.py       # SQLAlchemy + PyMySQL + create DB
-│       ├── models.py         # Entidades transactions y orders
+│       ├── migrations.py     # ALTER TABLE para campos de futuros (no rompe spot)
+│       ├── models.py         # Entidades transactions y orders (SPOT/FUTURES)
 │       ├── schemas.py        # Schemas Pydantic
-│       ├── binance.py        # Cliente de balance spot (HMAC)
+│       ├── binance.py        # Cliente balance/posiciones (HMAC) spot + fapi
+│       ├── analysis.py       # Señal de mercado (klines → score LONG/SHORT)
+│       ├── analysis_emitter.py  # Hilo SSE que publica market.analysis
+│       ├── price_stream.py   # WebSocket de precios → SSE
+│       ├── events.py         # Bus de eventos en memoria (SSE)
 │       └── routers/
 │           ├── transactions.py
 │           ├── orders.py
-│           └── balance.py
+│           ├── balance.py    # balance + posiciones de futuros
+│           ├── analysis.py   # GET /api/analysis/signal
+│           └── events.py     # GET /api/events (SSE)
 └── portal/
     ├── proxy.conf.json       # /api → localhost:8000 en dev
     ├── angular.json
     └── src/
         ├── environments/     # apiUrl por entorno
         └── app/
-            ├── core/         # modelos + servicios HTTP (transactions, balance)
+            ├── core/         # modelos + servicios HTTP (transactions, balance, señal)
             ├── shared/       # pipes y componentes reutilizables
             └── features/
-                ├── dashboard/       # balance spot + stats TEST/REAL + tabla
-                └── transactions/    # listado con filtros + detalle
+                ├── dashboard/       # señal LONG/SHORT + balance spot/futuros + stats + tabla
+                └── transactions/    # listado con filtros (mercado/estado) + detalle
 ```
 
 ---

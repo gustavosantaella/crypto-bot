@@ -14,4 +14,14 @@ export interface TransactionStats {
   losses_test: number;
   wins_real: number;
   losses_real: number;
+  // Separación spot / futuros.
+  total_spot: number;
+  total_futures: number;
+  total_profit_spot: number;
+  total_profit_futures: number;
+  wins_spot: number;
+  losses_spot: number;
+  wins_futures: number;
+  losses_futures: number;
 }
+

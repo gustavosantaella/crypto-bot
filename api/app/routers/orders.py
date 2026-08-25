@@ -30,6 +30,7 @@ def list_orders(
     db: Db,
     symbol: str | None = Query(default=None),
     side: str | None = Query(default=None, pattern="^(BUY|SELL)$"),
+    market_type: str | None = Query(default=None, pattern="^(SPOT|FUTURES)$"),
     test_mode: bool | None = Query(default=None, description="true=testnet, false=producción"),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
@@ -39,6 +40,8 @@ def list_orders(
         query = query.where(Order.symbol == symbol.upper())
     if side:
         query = query.where(Order.side == side)
+    if market_type:
+        query = query.where(Order.market_type == market_type)
     if test_mode is not None:
         query = query.where(Order.test_mode.is_(test_mode))
     return list(db.execute(query.limit(limit).offset(offset)).scalars().all())

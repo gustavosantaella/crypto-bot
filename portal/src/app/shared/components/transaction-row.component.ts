@@ -16,6 +16,18 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
     </td>
     <td class="cell">{{ tx().symbol }}</td>
     <td class="cell">
+      <span class="badge" [class.badge--spot]="tx().market_type === 'SPOT'"
+                         [class.badge--futures]="tx().market_type === 'FUTURES'">
+        {{ tx().market_type }}
+      </span>
+    </td>
+    <td class="cell">
+      <span class="badge" [class.badge--long]="tx().side === 'LONG'"
+                         [class.badge--short]="tx().side === 'SHORT'">
+        {{ tx().side }}{{ tx().leverage > 1 ? ' ' + tx().leverage + '×' : '' }}
+      </span>
+    </td>
+    <td class="cell">
       <span class="badge" [class.badge--open]="tx().status === 'OPEN'"
                          [class.badge--closed]="tx().status === 'CLOSED'"
                          [class.badge--canceled]="tx().status === 'CANCELED'">
@@ -52,6 +64,10 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
     .badge--canceled { background: var(--danger-bg); color: var(--danger); }
     .badge--test { background: rgba(148, 163, 184, 0.18); color: #94a3b8; }
     .badge--real { background: rgba(34, 211, 238, 0.15); color: #22d3ee; }
+    .badge--spot { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
+    .badge--futures { background: rgba(168, 85, 247, 0.16); color: #a78bfa; }
+    .badge--long { background: var(--ok-bg); color: var(--ok); }
+    .badge--short { background: var(--danger-bg); color: var(--danger); }
     .text--profit { color: var(--ok); }
     .text--loss { color: var(--danger); }
   `],

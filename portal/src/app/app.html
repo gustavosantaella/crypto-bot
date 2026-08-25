@@ -4,6 +4,22 @@
       <span class="brand__logo">◈</span>
       <span class="brand__name">Crypto Bot</span>
     </div>
+
+    <div class="market-switch">
+      <button type="button"
+              class="market-btn"
+              [class.market-btn--active]="marketType() === 'SPOT'"
+              (click)="marketType() !== 'SPOT' && toggleMarketType()">
+        Spot
+      </button>
+      <button type="button"
+              class="market-btn"
+              [class.market-btn--active]="marketType() === 'FUTURES'"
+              (click)="marketType() !== 'FUTURES' && toggleMarketType()">
+        Futuros
+      </button>
+    </div>
+
     <ul class="nav">
       <li>
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
@@ -22,14 +38,14 @@
       </button>
       <span class="ambient__label">PROD</span>
     </div>
-    <p class="ambient__hint">Viendo: {{ testMode() ? 'Testnet' : 'Producción' }}</p>
+    <p class="ambient__hint">Viendo: {{ testMode() ? 'Testnet' : 'Producción' }} · {{ marketType() }}</p>
 
     <div class="price">
       <span class="price__label">{{ price()?.symbol ?? '…' }} · en vivo</span>
       <span class="price__value">{{ price()?.price != null ? (price()!.price | num:2) : '—' }}</span>
     </div>
 
-    <p class="sidebar__foot">Bot spot · Binance</p>
+    <p class="sidebar__foot">Bot spot y futuros · Binance</p>
   </nav>
 
   <main class="content">

@@ -44,7 +44,7 @@ class ApiReporter:
     # API pública (no bloqueante)
     # ------------------------------------------------------------------
     def create_transaction(self, position: Position) -> None:
-        """Crea la transacción (ciclo) en la API en cuanto se compra."""
+        """Crea la transacción (ciclo) en la API en cuanto se abre la posición."""
         payload = {
             "symbol": position.symbol,
             "buy_order_id": position.buy_order_id,
@@ -53,12 +53,20 @@ class ApiReporter:
             "buy_quote": position.buy_quote,
             "buy_time": _utc_iso(position.buy_time),
             "test_mode": position.test_mode,
+            "market_type": position.market_type,
+            "side": position.side,
+            "leverage": position.leverage,
+            "notional": position.buy_quote,
+            "margin": position.margin,
+            "liquidation_price": position.liquidation_price,
+            "take_profit_price": position.take_profit_price,
+            "stop_loss_price": position.stop_loss_price,
             "status": "OPEN",
         }
         self._queue.put(("create", str(position.buy_order_id), payload))
 
     def close_transaction(self, position: Position, order, profit: float, profit_pct: float) -> None:
-        """Cierra la transacción con los datos de la venta."""
+        """Cierra la transacción con los datos de la venta/cierre."""
         payload = {
             "sell_order_id": order.order_id,
             "sell_price": order.avg_price,
@@ -71,7 +79,16 @@ class ApiReporter:
         }
         self._queue.put(("close", str(position.buy_order_id), payload))
 
-    def report_order(self, symbol: str, side: str, order, test_mode: bool) -> None:
+    def report_order(
+        self,
+        symbol: str,
+        side: str,
+        order,
+        test_mode: bool,
+        market_type: str = "SPOT",
+        position_side: str = "BOTH",
+        leverage: int = 1,
+    ) -> None:
         """Registra una orden individual (auditoría) en la API."""
         payload = {
             "symbol": symbol,
@@ -82,6 +99,9 @@ class ApiReporter:
             "quote_quantity": order.quote_qty,
             "status": order.status,
             "test_mode": test_mode,
+            "market_type": market_type,
+            "position_side": position_side,
+            "leverage": leverage,
         }
         self._queue.put(("order", None, payload))
 

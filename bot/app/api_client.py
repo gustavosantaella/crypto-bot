@@ -31,9 +31,16 @@ class ApiClient:
             raise ApiClientError(f"HTTP {resp.status_code}: {resp.text[:200]}")
         return resp.json()
 
-    def get_open_transactions(self) -> list[dict]:
-        """Transacciones OPEN (ciclos sin cerrar) registradas en la API."""
-        data = self._request("GET", "/api/transactions", params={"status": "OPEN", "limit": 50})
+    def get_open_transactions(self, market_type: str | None = None) -> list[dict]:
+        """Transacciones OPEN (ciclos sin cerrar) registradas en la API.
+
+        ``market_type`` permite filtrar solo spot ("SPOT") o solo futuros
+        ("FUTURES") para no mezclar posiciones al reconciliar.
+        """
+        params = {"status": "OPEN", "limit": 50}
+        if market_type:
+            params["market_type"] = market_type
+        data = self._request("GET", "/api/transactions", params=params)
         return data or []
 
     def cancel_transaction(self, transaction_id: int) -> None:

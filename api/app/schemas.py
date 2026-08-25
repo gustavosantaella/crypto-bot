@@ -1,4 +1,5 @@
 """Schemas Pydantic para la API."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -7,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class TransactionCreate(BaseModel):
-    """Cuerpo para crear una transacción (al comprar)."""
+    """Cuerpo para crear una transacción (al comprar/abrir posición)."""
 
     symbol: str = Field(min_length=1, max_length=20)
     status: str = "OPEN"
@@ -18,9 +19,19 @@ class TransactionCreate(BaseModel):
     buy_quote: float
     buy_time: datetime
 
+    # Identificación del mercado (spot por defecto para retrocompatibilidad).
+    market_type: str = "SPOT"
+    side: str = "LONG"
+    leverage: int = 1
+    notional: float | None = None
+    margin: float | None = None
+    liquidation_price: float | None = None
+    take_profit_price: float | None = None
+    stop_loss_price: float | None = None
+
 
 class TransactionClose(BaseModel):
-    """Cuerpo para cerrar una transacción (al vender)."""
+    """Cuerpo para cerrar una transacción (al vender/cerrar posición)."""
 
     status: str = "CLOSED"
     sell_order_id: int
@@ -39,6 +50,9 @@ class TransactionOut(BaseModel):
     symbol: str
     status: str
     test_mode: bool
+    market_type: str
+    side: str
+    leverage: int
     buy_order_id: int | None
     buy_price: float
     buy_quantity: float
@@ -51,6 +65,11 @@ class TransactionOut(BaseModel):
     sell_time: datetime | None
     profit: float | None
     profit_pct: float | None
+    notional: float | None
+    margin: float | None
+    liquidation_price: float | None
+    take_profit_price: float | None
+    stop_loss_price: float | None
     created_at: datetime
     updated_at: datetime
 
@@ -70,6 +89,15 @@ class TransactionStats(BaseModel):
     losses_test: int
     wins_real: int
     losses_real: int
+    # Separación spot / futuros.
+    total_spot: int = 0
+    total_futures: int = 0
+    total_profit_spot: float = 0.0
+    total_profit_futures: float = 0.0
+    wins_spot: int = 0
+    losses_spot: int = 0
+    wins_futures: int = 0
+    losses_futures: int = 0
 
 
 class OrderCreate(BaseModel):
@@ -82,6 +110,10 @@ class OrderCreate(BaseModel):
     status: str
     test_mode: bool = True
     transaction_id: int | None = None
+    # Identificación del mercado (spot por defecto).
+    market_type: str = "SPOT"
+    position_side: str | None = None
+    leverage: int = 1
 
 
 class OrderOut(BaseModel):
@@ -97,4 +129,7 @@ class OrderOut(BaseModel):
     quote_quantity: float
     status: str
     test_mode: bool
+    market_type: str
+    position_side: str | None
+    leverage: int
     created_at: datetime

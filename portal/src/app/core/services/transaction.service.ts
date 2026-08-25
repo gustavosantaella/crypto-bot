@@ -8,6 +8,7 @@ import { TransactionStats } from '../models/transaction-stats.model';
 
 export interface TransactionFilters {
   testMode?: boolean | null;
+  marketType?: string | null;
   status?: string | null;
   limit?: number;
   offset?: number;
@@ -30,6 +31,9 @@ export class TransactionService {
     let params = new HttpParams();
     if (filters.testMode != null) {
       params = params.set('test_mode', String(filters.testMode));
+    }
+    if (filters.marketType) {
+      params = params.set('market_type', filters.marketType);
     }
     if (filters.status) {
       params = params.set('status', filters.status);

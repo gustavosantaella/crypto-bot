@@ -30,6 +30,10 @@ export class EventService {
   readonly priceUpdates$: Observable<ServerEvent> = this.events.pipe(
     filter((e) => e.type === 'price'),
   );
+  /** Solo eventos de señal de mercado (LONG/SHORT/NEUTRAL). */
+  readonly analysis$: Observable<ServerEvent> = this.events.pipe(
+    filter((e) => e.type === 'market.analysis'),
+  );
   /** Estado de la conexión SSE (true = conectado, false = desconectado). */
   readonly connection$ = this.connectionState.asObservable();
 
@@ -45,6 +49,7 @@ export class EventService {
     this.source.addEventListener('transaction.created', (e) => this.emit('transaction.created', e));
     this.source.addEventListener('transaction.updated', (e) => this.emit('transaction.updated', e));
     this.source.addEventListener('transaction.canceled', (e) => this.emit('transaction.canceled', e));
+    this.source.addEventListener('market.analysis', (e) => this.emit('market.analysis', e));
     this.source.addEventListener('price', (e) => this.emit('price', e));
   }
 
