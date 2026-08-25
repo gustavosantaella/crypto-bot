@@ -73,12 +73,16 @@ def list_transactions(
 def get_stats(
     db: Db,
     test_mode: Annotated[bool | None, Query(description="true=testnet, false=producción")] = None,
+    market_type: Annotated[str | None, Query(pattern="^(SPOT|FUTURES)$", description="Filtrar por mercado")] = None,
 ) -> TransactionStats:
     """Resumen de transacciones.
 
-    Sin ``test_mode`` devuelve el total y el desglose TEST/REAL. Con
-    ``test_mode`` devuelve las stats SOLO del ambiente indicado (lo que el
-    switch del portal selecciona).
+    - Sin filtros: totales con desglose TEST/REAL y SPOT/FUTURES.
+    - Con ``test_mode``: solo el ambiente indicado (lo que el switch del portal
+      selecciona).
+    - Con ``market_type``: solo ese mercado (spot o futuros).
+    - Con ambos: solo ese mercado dentro de ese ambiente (p. ej. futuros +
+      testnet).
     """
 
     def _count_total(*filters) -> int:
@@ -96,8 +100,13 @@ def get_stats(
         stmt = select(func.count(Transaction.id)).where(Transaction.status == "CLOSED", *filters)
         return int(db.scalar(stmt) or 0)
 
+    # Filtro de mercado (opcional) que se combina con el de ambiente.
+    market_filter = (Transaction.market_type == market_type) if market_type else None
+
     if test_mode is not None:
         env_filter = Transaction.test_mode.is_(test_mode)
+        if market_filter is not None:
+            env_filter = env_filter & market_filter
         total = _count_total(env_filter)
         open_count = _count_total(env_filter, Transaction.status == "OPEN")
         closed_count = _count_total(env_filter, Transaction.status == "CLOSED")
@@ -105,7 +114,7 @@ def get_stats(
         wins = _count(env_filter, Transaction.profit > 0)
         losses = _count(env_filter, Transaction.profit < 0)
         avg_profit = total_profit / closed_count if closed_count else 0.0
-        # Desglose por mercado.
+        # Desglose por mercado (respetando el filtro de mercado si viene).
         spot_filter = env_filter & (Transaction.market_type == "SPOT")
         futures_filter = env_filter & (Transaction.market_type == "FUTURES")
         total_spot = _count_total(spot_filter)
@@ -136,24 +145,26 @@ def get_stats(
             losses_futures=_count(futures_filter, Transaction.profit < 0),
         )
 
-    total = _count_total()
-    open_count = _count_total(Transaction.status == "OPEN")
-    closed_count = _count_total(Transaction.status == "CLOSED")
-    test_count = _count_total(Transaction.test_mode.is_(True))
+    # Sin filtro de ambiente: aplicar el de mercado a todo si viene.
+    base_filters = [market_filter] if market_filter is not None else []
+    total = _count_total(*base_filters)
+    open_count = _count_total(*base_filters, Transaction.status == "OPEN")
+    closed_count = _count_total(*base_filters, Transaction.status == "CLOSED")
+    test_count = _count_total(*base_filters, Transaction.test_mode.is_(True))
     real_count = total - test_count
 
-    total_profit = _sum_profit()
-    total_profit_test = _sum_profit(Transaction.test_mode.is_(True))
-    total_profit_real = _sum_profit(Transaction.test_mode.is_(False))
+    total_profit = _sum_profit(*base_filters)
+    total_profit_test = _sum_profit(*base_filters, Transaction.test_mode.is_(True))
+    total_profit_real = _sum_profit(*base_filters, Transaction.test_mode.is_(False))
 
-    wins_test = _count(Transaction.test_mode.is_(True), Transaction.profit > 0)
-    losses_test = _count(Transaction.test_mode.is_(True), Transaction.profit < 0)
-    wins_real = _count(Transaction.test_mode.is_(False), Transaction.profit > 0)
-    losses_real = _count(Transaction.test_mode.is_(False), Transaction.profit < 0)
+    wins_test = _count(*base_filters, Transaction.test_mode.is_(True), Transaction.profit > 0)
+    losses_test = _count(*base_filters, Transaction.test_mode.is_(True), Transaction.profit < 0)
+    wins_real = _count(*base_filters, Transaction.test_mode.is_(False), Transaction.profit > 0)
+    losses_real = _count(*base_filters, Transaction.test_mode.is_(False), Transaction.profit < 0)
 
     avg_profit = total_profit / closed_count if closed_count else 0.0
 
-    # Desglose spot / futuros (sin filtro de ambiente).
+    # Desglose spot / futuros (respetando el filtro de mercado si viene).
     spot_filter = Transaction.market_type == "SPOT"
     futures_filter = Transaction.market_type == "FUTURES"
     return TransactionStats(
@@ -170,14 +181,14 @@ def get_stats(
         losses_test=losses_test,
         wins_real=wins_real,
         losses_real=losses_real,
-        total_spot=_count_total(spot_filter),
-        total_futures=_count_total(futures_filter),
-        total_profit_spot=_sum_profit(spot_filter),
-        total_profit_futures=_sum_profit(futures_filter),
-        wins_spot=_count(spot_filter, Transaction.profit > 0),
-        losses_spot=_count(spot_filter, Transaction.profit < 0),
-        wins_futures=_count(futures_filter, Transaction.profit > 0),
-        losses_futures=_count(futures_filter, Transaction.profit < 0),
+        total_spot=_count_total(*base_filters, spot_filter),
+        total_futures=_count_total(*base_filters, futures_filter),
+        total_profit_spot=_sum_profit(*base_filters, spot_filter),
+        total_profit_futures=_sum_profit(*base_filters, futures_filter),
+        wins_spot=_count(*base_filters, spot_filter, Transaction.profit > 0),
+        losses_spot=_count(*base_filters, spot_filter, Transaction.profit < 0),
+        wins_futures=_count(*base_filters, futures_filter, Transaction.profit > 0),
+        losses_futures=_count(*base_filters, futures_filter, Transaction.profit < 0),
     )
 
 

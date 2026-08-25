@@ -207,9 +207,11 @@ import { UsdtPipe } from '../../shared/pipes/usdt.pipe';
           <span class="stat-card__value">{{ winRate() | pct }}</span>
         </div>
         <div class="stat-card">
-          <span class="stat-card__label">Spot / Futuros</span>
+          <span class="stat-card__label">Ganadores / Perdedores</span>
           <span class="stat-card__value stat-card__value--small">
-            {{ stats()?.total_spot ?? 0 }} / {{ stats()?.total_futures ?? 0 }}
+            <span class="text--ok">{{ (stats()?.wins_test ?? 0) + (stats()?.wins_real ?? 0) }}</span>
+            /
+            <span class="text--loss">{{ (stats()?.losses_test ?? 0) + (stats()?.losses_real ?? 0) }}</span>
           </span>
         </div>
       </section>
@@ -339,8 +341,8 @@ export class DashboardComponent {
   }
 
   protected readonly stats = toSignal(
-    combineLatest([toObservable(this.testMode), toObservable(this.reloadTrigger)]).pipe(
-      switchMap(([testMode]) => this.transactionService.getStats(testMode)),
+    combineLatest([toObservable(this.testMode), toObservable(this.marketType), toObservable(this.reloadTrigger)]).pipe(
+      switchMap(([testMode, marketType]) => this.transactionService.getStats(testMode, marketType)),
     ),
   );
   protected readonly transactions = toSignal(

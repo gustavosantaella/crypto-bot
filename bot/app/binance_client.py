@@ -334,19 +334,23 @@ class BinanceClient:
         return self._futures_order(symbol, "BUY", quantity, reduce_only=True)
 
     def quantity_for_notional(self, symbol: str, notional: float) -> float:
-        """Cantidad de contratos para un nocional dado (aligna al step size)."""
+        """Cantidad de contratos para un nocional dado.
+
+        Redondea HACIA ARRIBA al step size del símbolo (en futuros la cantidad
+        mínima es 1 step, así que no puede quedar por debajo) y respeta el
+        ``minQty`` del exchange.
+        """
         info = self.get_symbol_info(symbol)
         step = info["step_size"]
+        min_qty = max(info["min_qty"], step)
         price = self.get_ticker_price(symbol)
         if price <= 0:
             raise BinanceAPIError(-1, "precio inválido para calcular cantidad")
-        qty = floor_to_step(notional / price, step)
+        qty = ceil_to_step(notional / price, step)
+        if qty < min_qty:
+            qty = min_qty
         if qty <= 0:
-            raise BinanceAPIError(
-                -1,
-                f"nocional {notional:.2f} USDT demasiado pequeño para {symbol} "
-                f"(step={step})",
-            )
+            raise BinanceAPIError(-1, f"cantidad inválida para {symbol}")
         return qty
 
 

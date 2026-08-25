@@ -57,6 +57,10 @@ class TradingEngine:
         # Timestamp: próxima vez que se permite reintentar una venta tras un
         # fallo de filtro (evita reintentos en bucle cada CHECK_INTERVAL_MS).
         self._next_sell_attempt: float = 0.0
+        # Timestamp: próxima vez que se permite reintentar una operación de
+        # futuros (apertura/cierre) tras un fallo (cantidad mínima, saldo
+        # insuficiente, filtros...). Evita el spam de reintentos cada ciclo.
+        self._next_futures_attempt: float = 0.0
         # Heartbeat: último log periódico de estado (para ver actividad).
         self._last_status_log: float = 0.0
         # Acumulador (ms) para el muestreo temporal de la SMA.
@@ -400,9 +404,14 @@ class TradingEngine:
             return  # no operar hasta confirmar la orden anterior
         if time.time() < self._next_sell_attempt:
             return  # cooldown tras un fallo de filtro (p. ej. NOTIONAL)
+        if time.time() < self._next_futures_attempt:
+            return  # cooldown tras un fallo de futuros (cantidad mínima, saldo...)
 
         decision = self._strategy.evaluate()
         if decision is None:
+            return
+        if decision.price is None or decision.price <= 0:
+            self._log.warning("Precio inválido (%.2f); se omite la decisión %s.", decision.price, decision.action)
             return
 
         try:
@@ -426,6 +435,9 @@ class TradingEngine:
             if exc.code == -1013 and "NOTIONAL" in str(exc):
                 self._next_sell_attempt = time.time() + 60
                 self._log.error("La orden falló por el filtro NOTIONAL; se reintentará en 60s.")
+            if self._is_futures:
+                self._next_futures_attempt = time.time() + 60
+                self._log.error("Se reintentará la operación de futuros en 60s.")
 
     def _execute_buy(self, decision: TradeDecision) -> None:
         if self._state.is_busy():
@@ -523,22 +535,59 @@ class TradingEngine:
     # ------------------------------------------------------------------
     # Órdenes de futuros (LONG / SHORT)
     # ------------------------------------------------------------------
-    def _futures_quantity(self) -> float:
-        """Cantidad de contratos = (margen * apalancamiento) / precio."""
-        notional = self._cfg.quote_amount * self._cfg.leverage
-        return self._client.quantity_for_notional(self._symbol, notional)
+    def _futures_margin_budget(self) -> float:
+        """Margen efectivo: QUOTE_AMOUNT limitado al saldo USDT disponible."""
+        margin = self._cfg.quote_amount
+        try:
+            balances = self._client.get_account_balances()
+            available = float(balances.get("USDT", 0.0) or 0.0)
+            if available > 0 and available < margin:
+                self._log.info(
+                    "Saldo disponible (%.2f USDT) < QUOTE_AMOUNT (%.2f); se usa el saldo como margen.",
+                    available, margin,
+                )
+                margin = available
+        except BinanceAPIError as exc:
+            self._log.warning("No se pudo consultar el saldo disponible: %s", exc)
+        return margin
 
     def _execute_futures_open(self, decision: TradeDecision) -> None:
         if self._state.is_busy():
             return  # una sola operación por ciclo
 
-        self._state.order_in_flight = True
         side = decision.side  # LONG | SHORT
         self._log.info(">>> ABRIR %s %s (precio tick: %.2f, score=%s)",
                        side, self._symbol, decision.price, decision.score)
 
+        margin = self._futures_margin_budget()
+        budget_notional = margin * self._cfg.leverage
+
+        # Validación preventiva: la cantidad mínima del contrato (1 step) no
+        # debe exigir más nocional del presupuestado (margen × apalancamiento).
         try:
-            quantity = self._futures_quantity()
+            info = self._get_symbol_info()
+        except BinanceAPIError as exc:
+            self._log.warning("No se pudo obtener los filtros del símbolo: %s", exc)
+            info = {}
+        min_qty = max(float(info.get("min_qty", 0) or 0), float(info.get("step_size", 0) or 0))
+        if min_qty > 0:
+            min_notional = min_qty * decision.price
+            if min_notional > budget_notional:
+                self._next_futures_attempt = time.time() + 60
+                self._log.error(
+                    "No se puede abrir %s %s: la cantidad mínima del contrato es %.8f "
+                    "(≈%.2f USDT) y el margen disponible (%.2f USDT × %dx = %.2f USDT de "
+                    "nocional) no lo cubre. Aumenta QUOTE_AMOUNT a ≥ %.2f USDT, sube "
+                    "LEVERAGE o usa un símbolo con step menor.",
+                    side, self._symbol, min_qty, min_notional, margin,
+                    self._cfg.leverage, budget_notional,
+                    min_notional / self._cfg.leverage,
+                )
+                return
+
+        self._state.order_in_flight = True
+        try:
+            quantity = self._client.quantity_for_notional(self._symbol, budget_notional)
             if side == "LONG":
                 order = self._client.market_open_long(self._symbol, quantity)
             else:
@@ -550,6 +599,7 @@ class TradingEngine:
         if order.executed_qty <= 0 or order.status != "FILLED":
             self._log.error("La apertura %s no se ejecutó (status=%s).", side, order.status)
             self._state.order_in_flight = False
+            self._next_futures_attempt = time.time() + 30
             return
 
         entry = order.avg_price
@@ -617,6 +667,7 @@ class TradingEngine:
         if order.executed_qty <= 0 or order.status != "FILLED":
             self._log.error("El cierre %s no se ejecutó (status=%s).", side, order.status)
             self._state.order_in_flight = False
+            self._next_futures_attempt = time.time() + 30
             return
 
         # PnL real en USDT y rentabilidad sobre el margen (con apalancamiento).
